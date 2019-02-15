@@ -4,3 +4,5 @@
 .Ruserdata
 ./data
 .httr-oauth
+googlesheets_token.rds
+project.Rproj
