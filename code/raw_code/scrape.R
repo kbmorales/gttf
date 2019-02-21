@@ -21,7 +21,9 @@ load(here("data/tidy_data",
 # Establishes URL system for scraping from index sites --------------------
 
 
-# MD Case search website: http://casesearch.courts.state.md.us/casesearch/processDisclaimer.jis?disclaimer=Y
+# MD Case search website:
+
+mdcs_url <- "http://casesearch.courts.state.md.us/casesearch/"
 
 url_stem <- "http://casesearch.courts.state.md.us/casesearch/inquiry-results.jsp?"
 
@@ -69,17 +71,45 @@ urls <- str_c(url_stem,
 
 dat.list = list()
 
+## Test setup
+
+# Set a session up
+mdcs_session <- html_session(mdcs_url)
+# Read the disclaimer form on the main MDCS webpage
+mdcs_form <- html_form(mdcs_session)[[1]]
+# Agree to disclaimer
+set_values(mdcs_form, disclaimer = "Y") 
+# Submit disclaimer
+mdcs_query <- submit_form(session = mdcs_session,
+            form = mdcs_form)
+mdcs_query_co_form <- html_form(mdcs_query)[[2]] %>%
+  set_values(company = "N") 
+mdcs_query_name_form <- html_form(mdcs_query)[[3]] %>%
+  set_values(lastName = "HERSL",
+             firstName = "DANIEL",
+             middleName = "",
+             exactMatchLn = "Y") 
+
+mdcs_search <- submit_form(session = mdcs_query,
+                           form = mdcs_query_name_form)
+
+
+
 for(i in seq_along(urls)) {
   Sys.sleep(runif(1,0,1))
-  webpage <- read_html(urls[i])
-  titles = html_nodes(webpage, '#categoryListContent .index-title') %>% html_text()
-  vid_length = html_nodes(webpage, '#categoryListContent .index-length') %>% html_text()
-  views = html_nodes(webpage, '#categoryListContent .index-views') %>% html_text() %>% str_replace_all("[,]", "") %>% as.numeric()
-  rating = html_nodes(webpage, '#categoryListContent .index-rating') %>% html_text() %>% str_replace("[%]", "") %>% as.numeric()
-  url = html_nodes(webpage, '.index-title a') %>% html_attr("href")
-  viewkey = str_replace(url, pattern = trimpatvk, "")
-  dat.list[[i]] = data.frame(category = category_names[i],titles,vid_length,views,rating, url, viewkey)
+  # webpage <- html_session(mdcs_url) %>% 
+  #   jump_to(urls[i]) %>%
+  #   read_html()
+  case_num = html_nodes(webpage, '#row tbody td:nth-child(1)') %>% html_text()
+  name = html_nodes(webpage, '#row td:nth-child(2)') %>% html_text()
+  party_type = html_nodes(webpage, '#row td:nth-child(4)') %>% html_text()
+  court = html_nodes(webpage, '#row td:nth-child(5)') %>% html_text()
+  case_type = html_nodes(webpage, '#row td:nth-child(6)') %>% html_text()
+  filing_date = html_nodes(webpage, '#row td:nth-child(8)') %>% html_text()
+  dat.list[[i]] = data.frame(case_num, name, party_type, court, case_type, filing_date)
 }
+
+rm(i)
 
 # Compile into single dataframe, identifies duplicates, saves data
 all_data = do.call(rbind,dat.list)
