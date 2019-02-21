@@ -221,14 +221,16 @@ bind_rows(mdcs_allers,
          court = X5,
          case_type = X6,
          status = X7,
+         
          date = X8,
          caption = X9) %>%
+# different cases to not lose data
   mutate(case_type_2 = case_when(
     case_type %in% c("CR", "Criminal") ~ "Criminal",
     case_type == "Appeal" ~ "Appeal",
     TRUE ~ "Other"
   )) %>%
-  # Filter out bad Taylor names
+# Filter out bad Taylor names
   filter(name != "Taylor, Marcus Randolph" |
            name != "Taylor, Marcus Rezan" |
            name != "Taylor, Marcus Rezan Jr") %>%
