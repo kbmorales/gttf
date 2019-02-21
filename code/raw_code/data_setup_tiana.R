@@ -207,6 +207,9 @@ mdcs_cops_df %>%
 # 8 Taylor          545
 # 9 Ward           1943
 
+
+# trying to create a graph that lists the date[year] the case
+# was filed, who filed, and status of case
 mdcs_cops_df %>%
   filter(case_type_2 == "Criminal") %>%
 ggplot(aes(x = status,
