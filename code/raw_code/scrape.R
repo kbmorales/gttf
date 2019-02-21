@@ -11,6 +11,11 @@ library(stringr)
 library(httr)
 library(rebus)
 library(dplyr)
+library(here)
+
+# Load cops db
+load(here("data/tidy_data",
+          "cops_names.rda"))
 
 
 # Establishes URL system for scraping from index sites --------------------
