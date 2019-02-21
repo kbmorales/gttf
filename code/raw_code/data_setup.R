@@ -98,3 +98,38 @@ save(mdcs_clewell,
      file = here("data/tidy_data",
                  "mdcs_clewell.rda"))
 
+
+# MDCS data workup --------------------------------------------------------
+
+
+# Combine cop datasets together
+bind_rows(mdcs_taylor, mdcs_ward, mdcs_rayam, mdcs_hersl, mdcs_clewell) %>%
+  mutate(X8 = as.Date(X8, format = "%m/%d/%Y")) %>%
+  rename(case_num = X1,
+         name = X2,
+         dob = X3,
+         party_type = X4,
+         court = X5,
+         case_type = X6,
+         status = X7,
+         date = X8,
+         caption = X9) %>%
+  mutate(case_type_2 = case_when(
+    case_type %in% c("CR", "Criminal") ~ "Criminal",
+    case_type == "Appeal" ~ "Appeal",
+    TRUE ~ "Other"
+  )) %>%
+  # Filter out bad Taylor names
+  filter(name != "Taylor, Marcus Randolph" |
+           name != "Taylor, Marcus Rezan" |
+           name != "Taylor, Marcus Rezan Jr") %>%
+  # filter(name != "")
+  mutate(gttf_cop = case_when(
+    str_detect(name, "Clewell") ~ "Clewell",
+    str_detect(name, "Hersl") ~ "Hersl",
+    str_detect(name, "Rayam") ~ "Rayam",
+    str_detect(name, "Taylor") ~ "Taylor"
+  ))
+
+
+
