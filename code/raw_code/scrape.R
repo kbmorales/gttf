@@ -42,20 +42,30 @@ url_stem <- "http://casesearch.courts.state.md.us/casesearch/inquiry-results.jsp
 
 page_num <- 1 # scrape from element of search results
 
+# Set up start date: ex: January 1, 2014
+start_date <- str_c(1, "%2F", 1, "%2F", 2014)
 
+# Set up end date: ex: March 31, 2016
+end_date <- str_c(3, "%2F", 31, "%2F", 2016)
 
 urls <- str_c(url_stem, 
               "d-16544-p=", 
               page_num, 
               "&lastName=",
+              cops$last_name,
+              "&filingDate=&filingEnd=",
+              end_date,
+              "&partyType=&courtSystem=B&firstName=",
+              cops$first_name,
+              "&site=00&filingStart=",
+              start_date,
+              "&action=Search&company=N&middleName=&exactMatchLn=Y&countyName="
               )
-
-index_col_names <- c("Title", "Length", "Views", "Rating", "URL", "View Key")
 
 dat.list = list()
 
 for(i in seq_along(urls)) {
-  Sys.sleep(runif(1,1,10))
+  Sys.sleep(runif(1,0,1))
   webpage <- read_html(urls[i])
   titles = html_nodes(webpage, '#categoryListContent .index-title') %>% html_text()
   vid_length = html_nodes(webpage, '#categoryListContent .index-length') %>% html_text()
