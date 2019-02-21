@@ -20,6 +20,107 @@ save(cops,
 # MDCS Data ---------------------------------------------------------------
 
 
+# Jenkins
+
+mdcs_jenkins <- c()
+
+for(i in 2008:2017){
+  mdcs_jenkins <- bind_rows(mdcs_jenkins,
+                            read_csv(here("data/raw_data",
+                                          str_c("Jenkins_", i, ".csv")),
+                                    col_names = FALSE,
+                                    col_types = "ccccccccc")
+  )
+}
+
+save(mdcs_jenkins, 
+     file = here("data/tidy_data",
+                 "mdcs_jenkins.rda"))
+
+# Hendrix
+
+mdcs_hendrix <- c()
+
+for(i in 2008:2017){
+  mdcs_hendrix <- bind_rows(mdcs_hendrix,
+                            read_csv(here("data/raw_data",
+                                          str_c("Hendrix_", i, ".csv")),
+                                     col_names = FALSE,
+                                     col_types = "ccccccccc")
+  )
+}
+
+save(mdcs_hendrix, 
+     file = here("data/tidy_data",
+                 "mdcs_hendrix.rda"))
+
+# Gondo
+
+mdcs_gondo <- c()
+
+for(i in 2008:2017){
+  mdcs_gondo <- bind_rows(mdcs_gondo,
+                            read_csv(here("data/raw_data",
+                                          str_c("Gondo_", i, ".csv")),
+                                     col_names = FALSE,
+                                     col_types = "ccccccccc")
+  )
+}
+
+save(mdcs_gondo, 
+     file = here("data/tidy_data",
+                 "mdcs_gondo.rda"))
+
+# Allers
+
+mdcs_allers <- c()
+
+for(i in 2008:2011){
+  mdcs_allers <- bind_rows(mdcs_allers,
+                           read_csv(here("data/raw_data",
+                                         str_c("Allers_", i, ".csv")),
+                                    col_names = FALSE,
+                                    col_types = "ccccccccc")
+  )
+}
+
+mdcs_allers <- bind_rows(mdcs_allers,
+                         read_csv(here("data/raw_data",
+                                       "Allers_2012_1.csv"),
+                                  col_names = FALSE,
+                                  col_types = "ccccccccc"))
+
+mdcs_allers <- bind_rows(mdcs_allers,
+                         read_csv(here("data/raw_data",
+                                       "Allers_2012_2.csv"),
+                                  col_names = FALSE,
+                                  col_types = "ccccccccc"))
+
+mdcs_allers <- bind_rows(mdcs_allers,
+                         read_csv(here("data/raw_data",
+                                       "Allers_2013_1.csv"),
+                                  col_names = FALSE,
+                                  col_types = "ccccccccc"))
+
+mdcs_allers <- bind_rows(mdcs_allers,
+                         read_csv(here("data/raw_data",
+                                       "Allers_2013_2.csv"),
+                                  col_names = FALSE,
+                                  col_types = "ccccccccc"))
+
+for(i in 2014:2017){
+  mdcs_allers <- bind_rows(mdcs_allers,
+                           read_csv(here("data/raw_data",
+                                         str_c("Allers_", i, ".csv")),
+                                    col_names = FALSE,
+                                    col_types = "ccccccccc")
+  )
+}
+
+save(mdcs_allers, 
+     file = here("data/tidy_data",
+                 "mdcs_allers.rda"))
+
 # Rayam
 
 mdcs_rayam <- c()
@@ -103,7 +204,15 @@ save(mdcs_clewell,
 
 
 # Combine cop datasets together
-bind_rows(mdcs_taylor, mdcs_ward, mdcs_rayam, mdcs_hersl, mdcs_clewell) %>%
+bind_rows(mdcs_allers, 
+          mdcs_clewell, 
+          mdcs_gondo, 
+          mdcs_hendrix, 
+          mdcs_hersl, 
+          mdcs_jenkins, 
+          mdcs_rayam, 
+          mdcs_taylor,
+          mdcs_ward) %>%
   mutate(X8 = as.Date(X8, format = "%m/%d/%Y")) %>%
   rename(case_num = X1,
          name = X2,
