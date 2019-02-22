@@ -5,6 +5,7 @@ library(here)
 library(readr)
 library(stringr)
 
+
 cops <- tibble(
   last_name = c("Allers", "Gondo", "Hendrix", "Jenkins", "Rayam", "Ward", "Hersl", "Taylor", "Clewell"),
   first_name = c("Thomas", "Momodu", "Evodio", "Wayne", "Jemell", "Maurice", "Daniel", "Marcus", "John")
@@ -200,11 +201,11 @@ save(mdcs_clewell,
                  "mdcs_clewell.rda"))
 
 
-# MDCS data workup --------------------------------------------------------
+# MDCS data clean --------------------------------------------------------
 
 
 # Combine cop datasets together
-bind_rows(mdcs_allers, 
+mdcs_cops_df <- bind_rows(mdcs_allers, 
           mdcs_clewell, 
           mdcs_gondo, 
           mdcs_hendrix, 
@@ -228,17 +229,119 @@ bind_rows(mdcs_allers,
     case_type == "Appeal" ~ "Appeal",
     TRUE ~ "Other"
   )) %>%
+  # Filter out bad Allers names
+  filter(name != "Allers, Thomas T") %>%
+  # Filter out bad Jenkins names
+  filter(name != "Jenkins, Wayne A",
+           name != "Jenkins, Wayne Anthony",
+           name != "Jenkins, Wayne Edward II",
+           name != "Jenkins, Wayne Jarrell",
+           name != "Jenkins, Wayne L",
+           name != "Jenkins, Wayne Lee",
+           name != "Jenkins, Wayne Lee Jr",
+           name != "Jenkins, Wayne M II",
+           name != "Jenkins, Wayne Maurice",
+           name != "Jenkins, Wayne Maurice II",
+           name != "Jenkins, Wayne T") %>%
   # Filter out bad Taylor names
-  filter(name != "Taylor, Marcus Randolph" |
-           name != "Taylor, Marcus Rezan" |
+  filter(name != "Taylor, Marcus Randolph",
+           name != "Taylor, Marcus Rezan",
            name != "Taylor, Marcus Rezan Jr") %>%
-  # filter(name != "")
+  # Filter out bad Ward names
+  filter(name != "Ward, Maurice A",
+           name != 	"Ward, Maurice A Jr",
+           name != "Ward, Maurice A Jr.",
+           name != "Ward, Maurice A Sr",	
+           name != "Ward, Maurice A. Jr",
+           name != "Ward, Maurice Alexander Jr",
+           name != "Ward, Maurice D",
+           name != "Ward, Maurice Devon",
+           name != "Ward, Maurice Douglas",
+           name != "Ward, Maurice Ethan",	
+           name != "Ward, Maurice L",
+           name != "Ward, Maurice Lanier",
+           name != "Ward, Maurice R",
+           name != "Ward, Maurice Reginald",
+           name != "Ward, Maurice S",
+           name != "Ward, Maurice Xavier") %>%
   mutate(gttf_cop = case_when(
+    str_detect(name, "Allers") ~ "Allers",
     str_detect(name, "Clewell") ~ "Clewell",
+    str_detect(name, "Gondo") ~ "Gondo",
+    str_detect(name, "Hendrix") ~ "Hendrix",
     str_detect(name, "Hersl") ~ "Hersl",
+    str_detect(name, "Jenkins") ~ "Jenkins",
     str_detect(name, "Rayam") ~ "Rayam",
-    str_detect(name, "Taylor") ~ "Taylor"
+    str_detect(name, "Taylor") ~ "Taylor",
+    TRUE ~ "Ward"
   ))
 
+save(mdcs_cops_df, 
+     file = here("data/tidy_data",
+                 "mdcs_cops_df.rda"))
 
+### Clewell?
+
+# Removing Clewell from dataset
+mdcs_cops_df <- mdcs_cops_df %>% filter(gttf_cop != "Clewell")
+
+nrow(mdcs_cops_df)
+
+
+# MDCS Data Workup --------------------------------------------------------
+
+
+# Identify cases with multiple cops associated with them
+multicop_cases <- mdcs_cops_df %>% 
+  group_by(case_num) %>%
+  summarise(count = n_distinct(gttf_cop)) %>%
+  filter(count > 1) %>% 
+  pull(case_num)
+
+# Filter out multi cop cases
+single_cop_cases <- mdcs_cops_df %>% 
+  anti_join(tibble(case_num = multicop_cases))
+
+# Create db of multi-cop cases
+multicop_cases <- mdcs_cops_df %>% 
+  semi_join(tibble(case_num = multicop_cases))
+
+# See how many cops are in each case by case number
+multicop_cases %>%
+  group_by(case_num) %>%
+  summarise(n = n_distinct(gttf_cop))
+
+# Change multcop cases to "Multiple", keep only one row from each
+multicop_cases <- multicop_cases %>% 
+  mutate(gttf_cop = "Multiple") %>%
+  group_by(case_num) %>%
+  filter(row_number()==1)
+
+# Rejoin dataset together 
+mdcs_cops_df <- bind_rows(single_cop_cases, multicop_cases)
+
+# Examine multiple cases leftover
+multicase_nums <- mdcs_cops_df %>% count(case_num) %>% filter(n > 1) %>% pull(case_num)
+
+# Seems like its safe to get rid of them
+mdcs_cops_df <- mdcs_cops_df %>% 
+  group_by(case_num) %>% 
+  filter(row_number()== 1)
+
+# Order cops alphabetically with multiple last
+mdcs_cops_df$gttf_cop <- factor(mdcs_cops_df$gttf_cop, levels = c("Allers",
+                                                                  "Gondo",
+                                                                  "Hendrix",
+                                                                  "Hersl",
+                                                                  "Jenkins",
+                                                                  "Rayam",
+                                                                  "Taylor",
+                                                                  "Ward",
+                                                                  "Multiple")
+                                )
+
+
+# Final stats:
+nrow(mdcs_cops_df)
+mdcs_cops_df %>% group_by(gttf_cop) %>% count()
 
