@@ -5,6 +5,8 @@ library(readr)
 library(stringr)
 library(dplyr)
 library(ggplot2)
+library(tidyr)
+library(scales)
 
 cops <- tibble(
   last_name = c("Allers", "Gondo", "Hendrix", "Jenkins", "Rayam", "Ward", "Hersl", "Taylor", "Clewell"),
@@ -29,6 +31,7 @@ save(mdcs_cops_df,
 # MIDDLE INITIAL FOR Ward - K; is a jr
 
 ######################## compiling .csv files into 1 with Ken's code
+# filter out Clewell!!!!! 
 
 # Allers, Thomas ----------------------------------------------------------
 
@@ -174,11 +177,42 @@ mdcs_cops_df <- bind_rows(mdcs_allers,
 
 
 # Let's create plots ------------------------------------------------------
-
 # distinctive cases
 mdcs_cops_df %>%
   group_by(gttf_cop) %>%
-  summarise(case_count = n()) 
+  summarise(case_count = n_distinct(case_num)) %>%
+  arrange(case_count)
+
+# cops_by_case <- 
+  mdcs_cops_df %>%
+  group_by(case_num) %>%
+  summarise(gttf_cop = n()) %>%
+  arrange(desc(gttf_cop))
+  
+  mdcs_cops_df %>%
+    group_by(case_num) %>%
+    summarise(cop_count = n_distinct(gttf_cop)) %>%
+    arrange(desc(cop_count)) %>%
+    filter(cop_count >= 2) %>%
+    mutate(case_type_2 = case_when(
+      case_type %in% c("CR", "Criminal") ~ "Criminal",
+      case_type == "Appeal" ~ "Appeal",
+      TRUE ~ "Other"
+    ))
+
+  # # A tibble: 1,368 x 2
+  # case_num   cop_count
+  # <chr>          <int>
+  # 1 3B02329813         7
+  # 2 116195014          6
+  # 3 116242002          6
+  # 4 3B02327881         6
+  # 5 416203007          6
+  # 6 816281001          6
+  # 7 816348010          6
+  # 8 0B02329355         5
+  # 9 0B02334234         5
+  # 10 116133006         5
 
 # distinctive case numbers ~ n_distinct(case_num)
 # gttf_cop     case_count
@@ -208,20 +242,22 @@ mdcs_cops_df %>%
 # 9 Ward           1943
 
 
+# graphing plots ----------------------------------------------------------
 # trying to create a graph that lists the date[year] the case
 # was filed, who filed, and status of case
+  # proportion plot OR filter out closed cases
 mdcs_cops_df %>%
   filter(case_type_2 == "Criminal") %>%
-ggplot(aes(x = status,
-           y = date)) +
-  geom_col(aes(fill = gttf_cop),
-           position = "dodge") +
+ggplot(aes(x = date)) +
+  geom_histogram(aes(fill = gttf_cop),
+           # position = "dodge"
+           ) +
   theme(text = element_text(size=15)) +
   theme(legend.position="bottom") +
   ggtitle("Criminal Case Records Status") +
-  labs(x = "Status",
-       y = "Date",
-       fill = "Cop Name") +
+  # labs(x = "Status",
+  #      y = "Date",
+  #      fill = "Cop Name") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
   # + 
   # geom_point(shape=21,color="grey",size=2) + 
@@ -235,5 +271,129 @@ ggplot(aes(x = status,
   #             show.legend = FALSE)
   # 
 
+  # REFERENCE: http://r-statistics.co/Top50-Ggplot2-Visualizations-MasterList-R-Code.html#Scatterplot
   
+  
+# eh, it's not what im looking for but this is just up
+ theme_set(theme_minimal())
+
+ mdcs_cops_df %>%
+   filter(case_type_2 == "Criminal") %>%
+   ggplot(aes(x = date, y = status)) +
+   geom_point(aes(col = gttf_cop)) +
+   theme(text = element_text(size=15)) +
+   theme(legend.position="bottom") +
+   ggtitle("Criminal Case Records Status") +
+   theme(axis.text.x = element_text(angle = 45, hjust =1))
  
+# correlation matix? -- correlogram????
+library(ggcorrplot)
+ 
+ # creating the matrix
+ # cannot use this plot because data is not numeric :/
+ 
+ # diverging bars!
+ # correlation in number of arrests before and after initial investigation? aprox 2015
+ 
+ # setting up data -- remember to use sample_cop DF!!
+ # i want to see correlation of case counts dependent on the start of investigation of 2015
+ # creaates new column in DF and labels a row before or after based on information provided.
+ # this column will come in handy when plotting the graph!
+ sample_cop$tl_z <- ifelse(mdcs_cops_df$date < "2014-12-31", "before", "after")
+
+ # count of the number of times the case_num pops up
+   ncase <- sample_cop %>% count(case_num)
+   # join two datasets
+   # this creates the column  `n` to be the amount of time the case appears within the data set!
+   sample_cop <- left_join(sample_cop, ncase)
+ 
+ sample_cop$tl_z <- factor(sample_cop$tl_z, levels = c("before", "after"))
+ 
+  # puts DF in order of col$tl_z
+  sample_cop <- sample_cop[order(sample_cop$tl_z), ]
+
+# this is supposed to keep things ordered?? this retains order for the plot
+  # sample_cop$gttf_cop <- factor(n_distinct(sample_cop$gttf_cop),
+  #                               levels = sample_cop$gttf_cop)
+  # commenting out because this doesn't work for me
+  # trying out different method below
+  # sample_cop$gttf_cop <- factor(unique(sample_cop$gttf_cop),
+  #                               levels = unique(sample_cop$gttf_cop))
+  
+  ############ CODE WORKS BUT NOT NECCESSARY OOOORRR EASY LOL
+  # for(i in 1:nrow(sample_cop)){
+  #   factor(unique(sample_cop$gttf_cop),
+  #          levels = unique(sample_cop$gttf_cop))
+  # }
+
+  # sample_cop$gttf_cop <- factor(unique(sample_cop$gttf_cop),
+  #                               levels = unique(sample_cop$gttf_cop))
+
+  # no bueno :(
+  # will as.factor give same result?
+
+  
+ggplot(sample_cop, aes(x = gttf_cop,
+                       y = date)
+       ) +
+    geom_point(aes(color = tl_z)) +
+    scale_color_manual(name = "Before and After Investigation Starts",
+                    labels = c("After", "Before"),
+                    values = c("#2282d6", "#960907"))+
+  coord_flip()
+    
+  
+  
+    geom_bar(stat = 'identity',
+             aes(fill = tl_z),
+             width = 4) +
+    scale_fill_manual(name = "Before and After Investigation Starts",
+                      labels = c("Before", "After"),
+                      values = c("before" = "#2282d6", "after" = "#960907")
+                      ) +
+    scale_y_date(labels = date_format("%Y")) +
+    theme(axis.text.x = element_text(angle = 45, hjust =1)) +
+    coord_flip()
+  
+    # maybe a population pyramid is what I am looking for
+    # will show: names of cops, n(cases filed), and whether it was filed before or after
+    # the investigation starts. 
+    
+    # creates variables that makes the x-axis breaks
+    brks <- seq(-2600, 2600, 200)
+    
+    # creates variable that pastes label together
+    # example
+    lbls = paste0(as.character(c(seq(2600, 0, -200), seq(200, 2600, 200))), " cases")
+    
+    # 
+    # sample_set = sample_cop %>%
+    #   group_by(gttf_cop, tl_z) %>%
+    #   summarise(case_count = n_distinct(case_num)) %>%
+    #   filter(gttf_cop != "Clewell") %>%
+    #   filter(tl_z != "NA")
+      
+
+      ggplot(sample_set, aes(x = gttf_cop,
+                 y = case_count,
+                 fill = tl_z)) +
+      # geom_col( stat = "identity",
+               # width = 1
+               # ) +
+      geom_col(data = subset(sample_set, tl_z == "after")) +
+      geom_col(data = subset(sample_set, tl_z == "before"), aes(y=case_count*(-1))) +
+      scale_y_continuous(breaks = brks,
+                         labels = lbls) +
+      coord_flip() +
+      labs(title = "Case Count",
+           subtitle = "based on the year 2015, which investigation starts") +
+      theme_minimal() +
+      theme(plot.title = element_text(hjust = .5),
+            axis.ticks = element_blank()) +
+      theme(axis.text.x = element_text(angle = 45, hjust =1)) +
+      scale_fill_brewer(palette = "Set2")
+      
+    
+    
+    
+  
