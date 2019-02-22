@@ -347,3 +347,49 @@ mdcs_cops_df$gttf_cop <- factor(mdcs_cops_df$gttf_cop, levels = c("Allers",
 nrow(mdcs_cops_df)
 mdcs_cops_df %>% group_by(gttf_cop) %>% count()
 
+
+
+# MDCS Individual Case Data -----------------------------------------------
+
+
+# Load in scraped dataset
+load(file = here("data/raw_data",
+                 "mdcs_case_data.rda"))
+
+# Filter out empty rows
+# mdcs_all_data <- mdcs_all_data %>% filter(all_dat != "")
+
+# Pull one example case to fucks with
+test_data <- mdcs_all_data %>%
+  filter(case_num == case_num[1])
+
+test_data %>%
+  mutate(court_system = str_replace_all(trimws(all_dat[str_which(all_dat, "Court System:")+1]
+                                               ),
+                                       "\\s*-?\n\\s+|\\s{2}", " "),
+         tracking_num = all_dat[str_which(all_dat, "Tracking No:")+1],
+         district_code = all_dat[str_which(all_dat, "District Code:")+1],
+         location_code = all_dat[str_which(all_dat, "Location Code:")+1],
+         doc_type = all_dat[str_which(all_dat, "Document Type:")+1],
+         case_disposition = all_dat[str_which(all_dat, "Case Disposition:")+1],
+         defendant_name = all_dat[str_which(all_dat, "Defendant Name:")+1],
+         defendant_race = all_dat[str_which(all_dat, "Race:")+1],
+         defendant_sex = all_dat[str_which(all_dat, "Sex:")+1],
+         defendant_height = sum(as.numeric(str_split(all_dat[str_which(all_dat, "Height:")+1],
+                                                     "",
+                                                     n = 2,
+                                                     simplify = TRUE)
+                                           ) * c(12,1)
+                                ),
+         defendant_weight = as.numeric(all_dat[str_which(all_dat, "Weight:")+1]),
+         defendant_dob = as.Date(all_dat[str_which(all_dat, "DOB:")+1],
+                                 format = "%m/%d/%Y"),
+         defendant_address = all_dat[str_which(all_dat, "Address:")+1],
+         defendant_city = all_dat[str_which(all_dat, "City:")+1],
+         defendant_state = all_dat[str_which(all_dat, "State:")+1],
+         defendant_zip = all_dat[str_which(all_dat, "Zip Code:")+1],
+         charge_num = all_dat[str_which(all_dat, "Charge No:")+1],
+         charge_desc = all_dat[str_which(all_dat, "Description:")+1],
+         charge_desc = all_dat[str_which(all_dat, "Description:")+1],
+         ) 
+  
