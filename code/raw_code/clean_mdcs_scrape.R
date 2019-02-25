@@ -126,6 +126,8 @@ rm(i)
 # weird_cases[[x]] <- test_data
 # i <- i + 1
 
+mdcs_demo_df <- mdcs_demo_df %>% select(-all_dat)
+
 save(mdcs_demo_df,
      file = here("data/tidy_data",
                  "mdcs_demo_data.rda")
