@@ -6,8 +6,7 @@
 
 
 # Load in scraped dataset
-load(file = here("data/raw_data",
-                 "mdcs_case_data.rda"))
+load(file = "data/raw_data/mdcs_case_data.rda")
 
 # Create demo dataset
 mdcs_demo_df <- c()
@@ -129,9 +128,7 @@ rm(i)
 mdcs_demo_df <- mdcs_demo_df %>% select(-all_dat)
 
 save(mdcs_demo_df,
-     file = here("data/tidy_data",
-                 "mdcs_demo_data.rda")
-)
+     file = "data/tidy_data/mdcs_demo_data.rda")
 
 # Charges dataset ---------------------------------------------------------
 
