@@ -45,7 +45,7 @@ mdcs_allers <- c()
 
 for(i in 2008:2017){
   mdcs_allers <- bind_rows(mdcs_allers,
-                          read_csv(here("data/raw_data",
+                          read_csv(here("data/tidy_data",
                                         str_c("Allers_", i, ".csv")),
                                    col_names = FALSE))
 }
@@ -108,7 +108,6 @@ save(mdcs_jenkins,
 
 # MDCS mark up ------------------------------------------------------------
 mdcs_cops_df <- bind_rows(mdcs_allers, 
-          mdcs_clewell, 
           mdcs_gondo, 
           mdcs_hendrix, 
           mdcs_hersl, 
