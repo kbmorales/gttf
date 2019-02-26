@@ -206,7 +206,6 @@ save(mdcs_clewell,
 
 # Combine cop datasets together
 mdcs_cops_df <- bind_rows(mdcs_allers, 
-          mdcs_clewell, 
           mdcs_gondo, 
           mdcs_hendrix, 
           mdcs_hersl, 
