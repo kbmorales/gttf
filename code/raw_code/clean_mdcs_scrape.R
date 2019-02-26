@@ -6,12 +6,16 @@
 
 
 # Load in scraped dataset
-load(file = "data/raw_data/mdcs_case_data.rda")
+load(file = here("data/raw_data",
+                 "mdcs_case_data.rda"))
+
+# Filter for case numbers in mdcs_cops_df
+mdcs_all_data <- mdcs_all_data %>% semi_join(mdcs_cops_df)
 
 # Create demo dataset
 mdcs_demo_df <- c()
 
-for(i in i:length(unique(mdcs_all_data$case_num))) {
+for(i in 1:length(unique(mdcs_all_data$case_num))) {
   # Break down if circuit or district court:
   mdcs_demo_row <- 
     # If a District Court Case
@@ -53,11 +57,15 @@ for(i in i:length(unique(mdcs_all_data$case_num))) {
         # defendant_weight = as.numeric(all_dat[str_which(all_dat, "Weight:")+1]),
         defendant_dob = as.Date(all_dat[str_which(all_dat, "DOB:")+1],
                                 format = "%m/%d/%Y"),
-        # Multiple of each--indexing from DOB:
-        defendant_address = all_dat[str_which(all_dat, "DOB:")+3],
-        defendant_city = all_dat[str_which(all_dat, "DOB:")+5],
-        defendant_state = all_dat[str_which(all_dat, "DOB:")+7],
-        defendant_zip = all_dat[str_which(all_dat, "DOB:")+9]) %>%
+        # Multiple of each--indexing from different strings:
+        defendant_address = if(sum(str_detect(all_dat, "^APT \\w+")) > 0){
+          all_dat[str_which(all_dat, "Address:")[1] +1]
+        } else {
+          all_dat[str_which(all_dat, "City:")[1] -1]
+        },
+        defendant_city = all_dat[str_which(all_dat, "City:")[1] +1],
+        defendant_state = all_dat[str_which(all_dat, "City:")[1] +3],
+        defendant_zip = all_dat[str_which(all_dat, "City:")[1] +5]) %>%
         filter(row_number() == 1)
     } else {
       # For Circuit court cases
@@ -104,13 +112,21 @@ for(i in i:length(unique(mdcs_all_data$case_num))) {
         # ) * c(12,1)
         # ),
         # defendant_weight = as.numeric(all_dat[str_which(all_dat, "Weight:")+1]),
-        defendant_dob = as.Date(all_dat[str_which(all_dat, "DOB:")+1],
-                                format = "%m/%d/%Y"),
-        # Multiple of each--indexing from DOB:
-        defendant_address = all_dat[str_which(all_dat, "DOB:")+3],
-        defendant_city = all_dat[str_which(all_dat, "DOB:")+5],
-        defendant_state = all_dat[str_which(all_dat, "DOB:")+7],
-        defendant_zip = all_dat[str_which(all_dat, "DOB:")+9]) %>%
+        defendant_dob = if("DOB:" %in% all_dat){
+          as.Date(all_dat[str_which(all_dat, "DOB:")+1],
+                                format = "%m/%d/%Y")
+        } else {
+          NA
+        },
+        # Multiple of each--indexing from different strings:
+        defendant_address = if(sum(str_detect(all_dat, "^APT \\w+")) > 0){
+          all_dat[str_which(all_dat, "Address:")[1] +1]
+          } else {
+            all_dat[str_which(all_dat, "City:")[1] -1]
+            },
+        defendant_city = all_dat[str_which(all_dat, "City:")[1] +1],
+        defendant_state = all_dat[str_which(all_dat, "City:")[1] +3],
+        defendant_zip = all_dat[str_which(all_dat, "City:")[1] +5]) %>%
         filter(row_number() == 1)
     }
   mdcs_demo_df <- bind_rows(mdcs_demo_df, mdcs_demo_row)
@@ -125,10 +141,22 @@ rm(i)
 # weird_cases[[x]] <- test_data
 # i <- i + 1
 
+# Remove initial all_dat column from demo data
 mdcs_demo_df <- mdcs_demo_df %>% select(-all_dat)
 
+# Make all zips 5-digit
+mdcs_demo_df <- mdcs_demo_df %>%
+  mutate(defendant_zip = str_trunc(defendant_zip,
+                                   width = 5,
+                                   side = "right",
+                                   ellipsis = "")
+  )
+
+# Save Demographics dataset
 save(mdcs_demo_df,
-     file = "data/tidy_data/mdcs_demo_data.rda")
+     file = here("data/tidy_data",
+                 "mdcs_demo_data.rda")
+)
 
 # Charges dataset ---------------------------------------------------------
 

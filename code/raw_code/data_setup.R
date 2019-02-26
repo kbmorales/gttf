@@ -205,7 +205,8 @@ save(mdcs_clewell,
 
 
 # Combine cop datasets together
-mdcs_cops_df <- bind_rows(mdcs_allers, 
+mdcs_cops_df <- bind_rows(mdcs_allers,
+          mdcs_clewell,
           mdcs_gondo, 
           mdcs_hendrix, 
           mdcs_hersl, 
@@ -340,6 +341,10 @@ mdcs_cops_df$gttf_cop <- factor(mdcs_cops_df$gttf_cop, levels = c("Allers",
                                                                   "Ward",
                                                                   "Multiple")
                                 )
+
+# Filter out "Other" case types
+mdcs_cops_df <- mdcs_cops_df %>%
+  filter(case_type_2 != "Other")
 
 
 # Final stats:

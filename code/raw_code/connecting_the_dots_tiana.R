@@ -63,41 +63,6 @@ plot(baltimore_city)
 
 
 
-# making the basemap ----------------------------------------------------------
-# playing around with leaflet
-
-############## USE THIS TO MARK CRIME INCIDENTS
-# leaflet() %>%
-#   addTiles() %>%
-#   addMarkers(lng =,
-#              lat =, 
-#              popup = )
-
-# set value for min/max zoom settings
-# leaflet(options = leafletOptions(minZoom = 0,
-#                                 maxZoom = 18))
-
-# creates map object
-bmore_map = leaflet()
-
-# sets parameters for map around bmre city and county
-bmore_map = bmore_map %>%
-  addPolygons(data = baltimore_county,
-              group = "County",
-              fill = FALSE) %>%
-  addTiles()
-
-bmore_map = bmore_map %>%
-  addPolygons(data = baltimore_city,
-              group = "City",
-              fill = FALSE) %>%
-  addLayersControl(overlayGroups = c("County", "City"),
-                   options = layersControlOptions(collapsed = FALSE))
-
-
-
-
-
 # cleaning data points for map --------------------------------------------
 # lets filter through some of the data to see if we can plot on our base map!
 
@@ -107,8 +72,8 @@ mdcs_demo_dfc = mdcs_demo_df %>%
   filter(defendant_state == "MD")
 
 # we want to join datasets as we need to retain address information BUT also make sure we are only capturing the cases we need
-# nrow(mdcs_cops_df)
-# [1] 7821
+# nrow(mdcs_demo_df)
+# [1] 7750
 # > nrow(mdcs_demo_dfc)
 # [1] 7355 <- num kept after join
 
@@ -143,7 +108,7 @@ bmore_address$defendant_zip = str_squish(bmore_address$defendant_zip)
 # take away access numbers in zip codes
 bmore_address$defendant_zip = str_trunc(bmore_address$defendant_zip,
                                         width = 5,
-                                        side = "left",
+                                        side = "right",
                                         ellipsis = "")
 
 # putting bacl together after applied filters
@@ -158,13 +123,106 @@ bmore_address = bmore_address %>%
 # lets use tmap package to see if we can get some coords
 bmore_fulladdress <- bmore_address$full_address
 
-geo_bmore <- geocode_OSM(bmore_fulladdress)
+# have to do this in batches because the code can't take this
+# crashes at 1000 rows
+
+# the first 20 rows are not reading, only 5 rows are coming back as geocoded. 
+# going to work with these 5 for now to plot 
+geo_bmore <- geocode_OSM(bmore_fulladdress[1:20])
+geo_bmore2 <- geocode_OSM(bmore_fulladdress[20:40])
+
+# let's join this with other data to align
+bmore_plot <- left_join(geo_bmore2, 
+                        bmore_address,
+                        by = "full_address")
+
+bmoredemo_markers <- left_join(bmore_plot,
+                           mdcs_demo_dfc,
+                           by = "case_num")
+
+# filtering out what I need only for demographic data
+# bmore_markers %>% select(case_num, full_address, lat, lon, defendant_race, defendant_sex) %>% group_by(case_num)
+
+# this still brings 45 rows!!
+# breaking this down
+# defendant_race has multiple variables from quick view, 
+# lets look at those
+
+bmoredemo_markers %>% select(defendant_race) %>% count
+(defendant_race) %>% collect()
+# defendant_race                n
+# <chr>                     <int>
+# 1 BLACK                      21
+# 2 BLACK, AFRICAN AMERICAN    24
+
+# for filtering and other purposes 
+# we will stick with BLACK, yea
+# this can easily be done with stringr
+# this code only works on current data set
+bmoredemo_markers$defendant_race = str_trunc(bmoredemo_markers$defendant_race,
+                                        width = 5,
+                                        side = "right",
+                                        ellipsis = "")
+
+# lets see if this helped
+bmoredemo_markers %>% select(case_num, full_address, lat, lon, defendant_race, defendant_sex) %>% group_by(case_num)
+
+# we still have distinctive rows --
+# lets check out defendant_sex
+bmoredemo_markers %>% select(defendant_sex) %>% count(defendant_sex) %>% collect()
+
+# lets filter for sex to be M or F for MALE and FEMALE
+bmoredemo_markers %>%
+  
+
 # it appears that geocode_OSM will only take strings that look like below
 # geocode_OSM(bmore_fulladdress[3])
 # [1] "7007 N ALTER ST, BALTIMORE, MD, 21207 - 0000"
-# so lets do some cleaning
-# looking at first col needed $defendant_address
-# there are addresses with many spaces and others with apts.
+
+# making the basemap ----------------------------------------------------------
+# playing around with leaflet
+
+############## USE THIS TO MARK CRIME INCIDENTS
+# leaflet() %>%
+#   addTiles() %>%
+#   addMarkers(lng =,
+#              lat =, 
+#              popup = )
+
+# set value for min/max zoom settings
+# leaflet(options = leafletOptions(minZoom = 0,
+#                                 maxZoom = 18))
+
+# creates map object
+bmore_map = leaflet() %>%
+  addProviderTiles(providers$MtbMap,
+                   options = providerTileOptions(opacity = 0.65)) %>%
+  addProviderTiles(providers$Stamen.TonerLines,
+                   options = providerTileOptions(opacity = 0.35)) %>%
+  addProviderTiles(providers$Stamen.TonerLabels)
+
+# sets parameters for map around bmre city and county
+# setting county lines
+bmore_map = bmore_map %>%
+  addPolygons(data = baltimore_county,
+              group = "County",
+              color = "#1d1030",
+              fill = FALSE)
+
+# setting city lines
+bmore_map = bmore_map %>%
+  addPolygons(data = baltimore_city,
+              group = "City",
+              color = "#1f004f",
+              fill = FALSE) %>%
+  addLayersControl(overlayGroups = c("County", "City"),
+                   baseGroups = "Cases",
+                   options = layersControlOptions(collapsed = FALSE))
 
 
-# lets try and add these markers
+bmore_map = bmore_map %>%
+  addMarkers(data = bmore_markers,
+             lng = ~lon,
+             lat = ~lat,
+             group = "Cases")
+
