@@ -2,12 +2,30 @@
 ### Clean MDCS Scraped Data
 ###
 
-# MDCS Demographic Data -----------------------------------------------
 
+
+# Setup -------------------------------------------------------------------
+
+
+library(rvest)
+library(stringr)
+library(httr)
+library(rebus)
+library(dplyr)
+library(here)
+library(readr)
+library(stringr)
+
+# Load cops db
+load(here("data/tidy_data",
+          "mdcs_cops_df.rda"))
 
 # Load in scraped dataset
 load(file = here("data/raw_data",
                  "mdcs_case_data.rda"))
+
+# MDCS Demographic Data -----------------------------------------------
+
 
 # Filter for case numbers in mdcs_cops_df
 mdcs_all_data <- mdcs_all_data %>% semi_join(mdcs_cops_df)
@@ -158,10 +176,70 @@ save(mdcs_demo_df,
                  "mdcs_demo_data.rda")
 )
 
+
 # Charges dataset ---------------------------------------------------------
+
 
 # Need to create separate datasets for charges
 
-# charge_num = all_dat[str_which(all_dat, "Charge No:")+1],
-# charge_desc = all_dat[str_which(all_dat, "Description:")+1],
-# charge_desc = all_dat[str_which(all_dat, "Description:")+1]
+# Create charges dataset
+mdcs_charges_df <- c()
+
+for(i in 1:length(unique(mdcs_all_data$case_num))) {
+   case <- mdcs_all_data %>% 
+     filter(case_num == unique(mdcs_all_data$case_num)[i])
+   # If a District Court Case
+   case_charge <- 
+   if(str_detect(mdcs_cops_df[mdcs_cops_df$case_num == unique(mdcs_all_data$case_num)[i], 5], "District")) {
+     tibble(
+       case_num = unique(mdcs_all_data$case_num)[i],
+       charge_num = case[str_which(case$all_dat, "Charge No:") +1, 2],
+       charge_desc = case[str_which(case$all_dat, "Charge No:") +3, 2],
+       charge_statute = case[str_which(case$all_dat, "Statute:") +1, 2],
+       charge_amend_date = case[str_which(case$all_dat, "Amended Date:") +1, 2],
+       charge_cjis_code = case[str_which(case$all_dat, "CJIS Code:") +1, 2],
+       charge_mo_pll = case[str_which(case$all_dat, "MO/PLL:") +1, 2],
+       charge_prob_cause = case[str_which(case$all_dat, "Probable Cause:") +1, 2],
+       charge_inc_date_from = as.Date(case[str_which(case$all_dat, "Incident Date From:") +1, 2],
+                                      format = "%m/%d/%Y"
+                                      ),
+       charge_inc_date_to = as.Date(case[str_which(case$all_dat, "To:") +1, 2],
+                                    format = "%m/%d/%Y"
+                                    ),
+       charge_victim_age = case[str_which(case$all_dat, "Victim Age:") +1, 2],
+       charge_disposition = NA,
+       charge_disp_date = NA
+       )
+   } else { 
+     # For Circuit court cases
+     tibble(
+       case_num = unique(mdcs_all_data$case_num)[i],
+       charge_num = case[str_which(case$all_dat, "Charge No:") +1, 2],
+       charge_desc = case[str_which(case$all_dat, "Description:") +1, 2],
+       charge_statute = NA,
+       charge_amend_date = NA,
+       charge_cjis_code = case[str_which(case$all_dat, "CJIS/Traffic Code:") +1, 2],
+       charge_mo_pll = NA,
+       charge_prob_cause = NA,
+       charge_inc_date_from = NA,
+       charge_inc_date_to = NA,
+       charge_victim_age = NA,
+       charge_disposition = if("Disposition:" %in% case$all_dat){
+         case[str_which(case$all_dat, "Disposition:") +1, 2]
+       } else {
+           NA
+         },
+       charge_disp_date = if("Disposition Date:" %in% case$all_dat){
+         as.Date(case[str_which(case$all_dat, "Disposition Date:") +1, 2],
+                 format = "%m/%d/%Y"
+                 )
+         } else {
+           NA
+           }
+       )
+     }
+   mdcs_charges_df <- mdcs_charges_df %>%
+     bind_rows(mdcs_charges_df, case_charge)
+}
+
+rm(i)

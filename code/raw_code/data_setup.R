@@ -4,6 +4,7 @@ library(tibble)
 library(here)
 library(readr)
 library(stringr)
+library(dplyr)
 
 
 cops <- tibble(
@@ -351,3 +352,6 @@ mdcs_cops_df <- mdcs_cops_df %>%
 nrow(mdcs_cops_df)
 mdcs_cops_df %>% group_by(gttf_cop) %>% count()
 
+save(mdcs_cops_df, 
+     file = here("data/tidy_data",
+                 "mdcs_cops__clean_df.rda"))
