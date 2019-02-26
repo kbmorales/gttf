@@ -342,6 +342,10 @@ mdcs_cops_df$gttf_cop <- factor(mdcs_cops_df$gttf_cop, levels = c("Allers",
                                                                   "Multiple")
                                 )
 
+# Filter out "Other" case types
+mdcs_cops_df <- mdcs_cops_df %>%
+  filter(case_type_2 != "Other")
+
 
 # Final stats:
 nrow(mdcs_cops_df)
