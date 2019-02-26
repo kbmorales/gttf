@@ -8,6 +8,11 @@ library(ggplot2)
 library(tidyr)
 library(scales)
 
+
+
+# setting up the data -----------------------------------------------------
+
+
 cops <- tibble(
   last_name = c("Allers", "Gondo", "Hendrix", "Jenkins", "Rayam", "Ward", "Hersl", "Taylor", "Clewell"),
   first_name = c("Thomas", "Momodu", "Evodio", "Wayne", "Jemell", "Maurice", "Daniel", "Marcus", "John")
@@ -159,7 +164,20 @@ mdcs_cops_df <- bind_rows(mdcs_allers,
            name != "Ward, Maurice R" &
            name != "Ward, Maurice Reginald" &
            name != "Ward, Maurice S" &
-           name != "Ward, Maurice Xavier" 
+           name != "Ward, Maurice Xavier" &
+           name != "Clewell, John Offr" &
+           name != "Clewell, John W" &
+           name != "Clewell, John Offr." &
+           name != "Clewell, John" &
+           name != "Clewell, John Ofc." &
+           name != "Clewell, John W Ofc." &
+           name != "Clewell, John W Ofc" &
+           name != "Clewell, John W. Ofc." &
+           name != "Clewell, John Officer" &
+           name != "Clewell, John W. Ofc" &
+           name != "Clewell, John W." &
+           name != "Clewell, John Ofc" &
+           name != "Clewell, John Off"
            ) %>%
   # filter(name != "")
   mutate(gttf_cop = case_when(
@@ -178,7 +196,7 @@ mdcs_cops_df <- bind_rows(mdcs_allers,
 
 # Let's create plots ------------------------------------------------------
 # distinctive cases
-mdcs_cops_df %>%
+n_cases <- mdcs_cops_df %>%
   group_by(gttf_cop) %>%
   summarise(case_count = n_distinct(case_num)) %>%
   arrange(case_count)
@@ -397,3 +415,6 @@ ggplot(sample_cop, aes(x = gttf_cop,
     
     
   
+      
+      
+      
