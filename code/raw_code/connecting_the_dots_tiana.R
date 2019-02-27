@@ -16,7 +16,7 @@ library(tmaptools)
 options(stringAsFactors = FALSE)
 
 
-# setting up the data -----------------------------------------------------
+# setting up the data for mapping only -----------------------------------------------------
 # where I got the data
 # https://catalog.data.gov/dataset/maryland-zip-codes-2010
 # https://catalog.data.gov/dataset/maryland-counties
@@ -63,28 +63,42 @@ plot(baltimore_city)
 
 
 
-# cleaning data points for map --------------------------------------------
+# cleaning data points for map MARKERS ONLY --------------------------------------------
 # lets filter through some of the data to see if we can plot on our base map!
 
 # the data got shifted a bit,
 # another team member will go back to clean but for now lets just use this as our dataset!
-mdcs_demo_dfc = mdcs_demo_df %>%
+mdcs_demo_dfc = bmore_demo %>%
   filter(defendant_state == "MD")
 
 # we want to join datasets as we need to retain address information BUT also make sure we are only capturing the cases we need
-# nrow(mdcs_demo_df)
-# [1] 7750
+# nrow(mdcs_demo_df) ~ in demo_filters.R bmore_demo = mdcs_demo_d (line 6)
+# [1] 7748
+# nrow(bmore_demo)
+# [1] 7748
 # > nrow(mdcs_demo_dfc)
-# [1] 7355 <- num kept after join
-
-# lets change the col names for case num so they match accordingly!
-mdcs_casenum = left_join(mdcs_demo_dfc,
-                         mdcs_cops_df,
-                         by = "case_num")
+# [1] 7687 <- num kept after filter
+# bmore_demo %>% count(defendant_state)
+# # A tibble: 13 x 2
+# defendant_state        n
+# <chr>              <int>
+# 1 CA                   3
+# 2 DC                   2
+# 3 GA                   1
+# 4 IA                   1
+# 5 MD                7687
+# 6 NC                   4
+# 7 NY                  14
+# 8 OH                   3
+# 9 PA                  11
+# 10 SC                  3
+# 11 VA                  9
+# 12 WV                  4
+# 13 XX                  6
 
 # now let's figure out what to do with these address columns. 
 # I only want two cols and unite them again and back into dataset
-bmore_address = mdcs_casenum %>%
+bmore_address = mdcs_demo_dfc %>%
   select(case_num, defendant_address, defendant_city, defendant_state, defendant_zip)
 
 # it appears that geocode_OSM will only take strings that look like below
@@ -115,21 +129,87 @@ bmore_address$defendant_zip = str_trunc(bmore_address$defendant_zip,
 bmore_address$full_address = paste0(str_c(bmore_address$defendant_address, ", ", 
                                           bmore_address$defendant_city, ", ",
                                           bmore_address$defendant_state, ", ",
-                                          bmore_address$defendant_zip))
+                                          bmore_address$defendant_zip, ", USA"))
 
 bmore_address = bmore_address %>%
   select(case_num, full_address)
 
 # lets use tmap package to see if we can get some coords
-bmore_fulladdress <- bmore_address$full_address
+bmore_demo = left_join(bmore_demo, bmore_address, by = "case_num")
 
 # have to do this in batches because the code can't take this
 # crashes at 1000 rows
-
+ 
 # the first 20 rows are not reading, only 5 rows are coming back as geocoded. 
 # going to work with these 5 for now to plot 
-geo_bmore <- geocode_OSM(bmore_fulladdress[1:20])
-geo_bmore2 <- geocode_OSM(bmore_fulladdress[20:40])
+geo_bmore <- geocode_OSM(bmore_demo$full_address[1:100])
+geo_bmore2 <- geocode_OSM(bmore_fulladdress[100:200])
+geo_bmore3 <- geocode_OSM(bmore_fulladdress[201:300])
+
+bmoreaddy_unique = unique(bmore_demo$full_address)
+# testing
+testing_addy <- geocode_OSM(bmoreaddy_unique[2])
+
+geo_bmore <- c()
+
+# amount of times i want this loop to run
+for(i in 1:round(length(bmore_demo$full_address)/100)) {
+# this helps search through 1-6400
+  test = geocode_OSM(bmore_demo$full_address[((i*100)-99):(i*100)])
+  geo_bmore <- bind_rows(geo_bmore, test)
+  }
+
+# trying a repeat loop
+# 
+#   for (i in 1:(round(nrow(bmore_demo["full_address"])/ 100))) {
+#     test = geocode_OSM(bmore_demo[((i*100)-99):(i*100),][["full_address"]])
+#     geo_bmore <- bind_rows(geo_bmore, test)
+#   }
+
+# i = 1:77
+# repeat{
+#   geo_bmore = geocode_OSM(bmore_demo[((i*100)-99):(i*100),][["full_address"]])
+#   if(i == 77){
+#     break
+#   }
+#   print(geo_bmore)
+# }
+
+
+# trying while loop
+# i = 1:77
+
+# pick up 02.28.2019 ------------------------------------------------------
+geo_bmore <- c()
+
+i <- 1
+# sometimes code will break because of 
+while(i <= nrow(bmore_demo)) {
+  geo_bmore_row <- geocode_OSM(bmore_demo[i,][["full_address"]])
+  if(is.null(geo_bmore_row)){
+    i <- i + 1
+    next;
+  }
+  geo_bmore_row <- tibble(obs_num = i, 
+                          address = geo_bmore_row[[1]],
+                          lat = geo_bmore_row[[2]][1],
+                          lon = geo_bmore_row[[2]][2]
+                          )
+  geo_bmore <- bind_rows(geo_bmore, geo_bmore_row)
+  i <- i + 1
+}
+
+# Take a peek at problem address (ones that break the geocode code)
+bmore_demo[i,]
+# Write down the bad ones!
+i <- i+1
+
+save(bmore_demo, 
+     file = here("data/tidy_data",
+                 "bmore_demo.rda"))
+
+# creating markers --------------------------------------------------------
+
 
 # let's join this with other data to align
 bmore_plot <- left_join(geo_bmore2, 

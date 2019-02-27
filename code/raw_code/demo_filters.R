@@ -84,9 +84,11 @@ bmore_demo %>%
 
 # only 4 NAs so still ok to do data set
 bmore_demo = bmore_demo %>%
-  mutate(age_yrs = round(difftime(Sys.Date(), bmore_demo$defendant_dob, units = "days") / 365))
+  mutate(age_yrs = as.character(round(difftime(Sys.Date(), bmore_demo$defendant_dob, units = "days") / 365)))
 
-# getting rid of "days"
-bmore_demo$age_yrs = str_trunc(bmore_demo$age_yrs, 4, "left")
 
-leftjoin with mdcs_cops_df
+# leftjoin with mdcs_cops_df
+bmore_demo = left_join(bmore_demo, mdcs_cops_df, by = "case_num")
+
+bmore_demo = bmore_demo %>%
+  filter(defendant_state == "MD")
