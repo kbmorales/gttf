@@ -173,6 +173,9 @@ bmoredemo_markers %>% select(defendant_sex) %>% count(defendant_sex) %>% collect
 
 # lets filter for sex to be M or F for MALE and FEMALE
 bmoredemo_markers %>%
+  mutate(sex_id = case_when(
+    defendant_sex == ""
+  ))
   
 
 # it appears that geocode_OSM will only take strings that look like below
