@@ -101,6 +101,9 @@ mdcs_demo_dfc = bmore_demo %>%
 bmore_address = mdcs_demo_dfc %>%
   select(case_num, defendant_address, defendant_city, defendant_state, defendant_zip)
 
+# test = mdcs_demo_dfc %>%
+#   select(case_num, defendant_address, defendant_city, defendant_state, defendant_zip)
+
 # it appears that geocode_OSM will only take strings that look like below
 # geocode_OSM(bmore_fulladdress[3])
 # [1] "7007 N ALTER ST, BALTIMORE, MD, 21207 - 0000"
@@ -119,6 +122,10 @@ bmore_address$defendant_city = str_squish(bmore_address$defendant_city)
 bmore_address$defendant_state = str_squish(bmore_address$defendant_state)
 bmore_address$defendant_zip = str_squish(bmore_address$defendant_zip)
 
+# remove apt and comma from first address line
+bmore_address$defendant_address = str_remove(bmore_address$defendant_address,
+                                             "(,? APT.? \\w+.*)|(\\.? APT.?.*)|(\\/APT.?(\\d+|\\w+))|((-*)APT (\\d+|\\w+))|((,?|\\s)+\\#.*)")
+
 # take away access numbers in zip codes
 bmore_address$defendant_zip = str_trunc(bmore_address$defendant_zip,
                                         width = 5,
@@ -131,33 +138,30 @@ bmore_address$full_address = paste0(str_c(bmore_address$defendant_address, ", ",
                                           bmore_address$defendant_state, ", ",
                                           bmore_address$defendant_zip, ", USA"))
 
+# Create a index of case numbers to full address
 bmore_address = bmore_address %>%
   select(case_num, full_address)
-
-# lets use tmap package to see if we can get some coords
-bmore_demo = left_join(bmore_demo, bmore_address, by = "case_num")
 
 # have to do this in batches because the code can't take this
 # crashes at 1000 rows
  
 # the first 20 rows are not reading, only 5 rows are coming back as geocoded. 
 # going to work with these 5 for now to plot 
-geo_bmore <- geocode_OSM(bmore_demo$full_address[1:100])
-geo_bmore2 <- geocode_OSM(bmore_fulladdress[100:200])
-geo_bmore3 <- geocode_OSM(bmore_fulladdress[201:300])
+# geo_bmore <- geocode_OSM(bmore_demo$full_address[1:100])
+# geo_bmore2 <- geocode_OSM(bmore_fulladdress[100:200])
+# geo_bmore3 <- geocode_OSM(bmore_fulladdress[201:300])
 
-bmoreaddy_unique = unique(bmore_demo$full_address)
-# testing
-testing_addy <- geocode_OSM(bmoreaddy_unique[2])
+# # testing
+# testing_addy <- geocode_OSM(bmoreaddy_unique[2])
 
-geo_bmore <- c()
+# geo_bmore <- c()
 
 # amount of times i want this loop to run
-for(i in 1:round(length(bmore_demo$full_address)/100)) {
-# this helps search through 1-6400
-  test = geocode_OSM(bmore_demo$full_address[((i*100)-99):(i*100)])
-  geo_bmore <- bind_rows(geo_bmore, test)
-  }
+# for(i in 1:round(length(bmore_demo$full_address)/100)) {
+# # this helps search through 1-6400
+#   test = geocode_OSM(bmore_demo$full_address[((i*100)-99):(i*100)])
+#   geo_bmore <- bind_rows(geo_bmore, test)
+#   }
 
 # trying a repeat loop
 # 
@@ -180,29 +184,53 @@ for(i in 1:round(length(bmore_demo$full_address)/100)) {
 # i = 1:77
 
 # pick up 02.28.2019 ------------------------------------------------------
+# just remember to reference unique list to find the rows that are messed up!
+# then look by case number from bmore_address, then join to full data set bmore_demo (which will eventually replace
+# mdcs_cop_demo_df) reference demo_data.R file
+bmoreaddy_unique = unique(bmore_address$full_address)
+
 geo_bmore <- c()
 
 i <- 1
 # sometimes code will break because of 
-while(i <= nrow(bmore_demo)) {
-  geo_bmore_row <- geocode_OSM(bmore_demo[i,][["full_address"]])
+while(i <= length(bmoreaddy_unique)) {
+  geo_bmore_row <- geocode_OSM(bmoreaddy_unique[i])
   if(is.null(geo_bmore_row)){
     i <- i + 1
     next;
   }
+  # these are backwards. reverse lat/lon
   geo_bmore_row <- tibble(obs_num = i, 
                           address = geo_bmore_row[[1]],
+                          # up and down
                           lat = geo_bmore_row[[2]][1],
+                          # left to right
                           lon = geo_bmore_row[[2]][2]
                           )
+# creating geo_bmore sp object
   geo_bmore <- bind_rows(geo_bmore, geo_bmore_row)
   i <- i + 1
 }
 
+# Left join bmore_address to geo_bmore by full_address
+# WRITE ME
+
 # Take a peek at problem address (ones that break the geocode code)
-bmore_demo[i,]
+bmoreaddy_unique[i]
+
 # Write down the bad ones!
+# final edit ended on 3217 ~ prob hit query limit for day
 i <- i+1
+
+# DO NOT RUN UNTIL ALL HAVE BEEN ACCOUNTED FOR
+# lets use tmap package to see if we can get some coords
+bmore_demo = left_join(bmore_demo, bmore_address, by = "case_num")
+
+
+# this only returns successful geo_code addresses, there are still addresses that are not accuonted for - addressses that OSM cannot locate
+save(geo_bmore, 
+     file = here("data/tidy_data",
+                 "geo_bmore_unique_addy.rda"))
 
 save(bmore_demo, 
      file = here("data/tidy_data",
@@ -210,58 +238,66 @@ save(bmore_demo,
 
 # creating markers --------------------------------------------------------
 
+# UPDATE AND RERUN EVERY TIME NEW GEO_BMORE SP DATA IS ADDED
 
 # let's join this with other data to align
-bmore_plot <- left_join(geo_bmore2, 
+# inserts case number with addy's
+# this will drop rows that were not able to find geo_codes
+# want to keep full data set. will create 2 plot data
+
+# keeps only data that was geocoded
+bmore_plot1 <- left_join(geo_bmore, 
                         bmore_address,
                         by = "full_address")
+# keeps all rows and data
+# bmore_plot2 <- left_join(bmore_address, 
+#                          geo_bmore,
+#                          by = "full_address")
 
-bmoredemo_markers <- left_join(bmore_plot,
+# keeps only data that was geocoded
+# only working for this data fo now
+bmoredemo_markers1 <- left_join(bmore_plot1,
                            mdcs_demo_dfc,
                            by = "case_num")
 
+# keeps all rows and data
+# bmoredemo_markers2 <- left_join(bmore_plot2,
+#                                mdcs_demo_dfc,
+#                                by = "case_num")
+
+# colnames(bmoredemo_markers1)
+# [1] "obs_num"           "full_address"      "lat"        
+# [4] "lon"               "case_num"          "court_system"
+# [7] "status_date"       "tracking_num"      "district_code"
+# [10] "location_code"    "doc_type"        "case_disposition"
+# [13] "complaint_num"    "district_case_num" "defendant_name" 
+# [16] "defendant_race"   "defendant_sex"     "defendant_dob"  
+# [19] "defendant_address" "defendant_city"   "defendant_state"
+# [22] "defendant_zip"     "sex_id"            "race_black"   
+# [25] "race_cat"          "age_yrs"           "name"       
+# [28] "dob"               "party_type"        "court"    
+# [31] "case_type"         "status"            "date"     
+# [34] "caption"           "case_type_2"       "gttf_cop"    
+
 # filtering out what I need only for demographic data
-# bmore_markers %>% select(case_num, full_address, lat, lon, defendant_race, defendant_sex) %>% group_by(case_num)
-
-# this still brings 45 rows!!
-# breaking this down
-# defendant_race has multiple variables from quick view, 
-# lets look at those
-
-bmoredemo_markers %>% select(defendant_race) %>% count
-(defendant_race) %>% collect()
-# defendant_race                n
-# <chr>                     <int>
-# 1 BLACK                      21
-# 2 BLACK, AFRICAN AMERICAN    24
-
-# for filtering and other purposes 
-# we will stick with BLACK, yea
-# this can easily be done with stringr
-# this code only works on current data set
-bmoredemo_markers$defendant_race = str_trunc(bmoredemo_markers$defendant_race,
-                                        width = 5,
-                                        side = "right",
-                                        ellipsis = "")
-
-# lets see if this helped
-bmoredemo_markers %>% select(case_num, full_address, lat, lon, defendant_race, defendant_sex) %>% group_by(case_num)
-
-# we still have distinctive rows --
-# lets check out defendant_sex
-bmoredemo_markers %>% select(defendant_sex) %>% count(defendant_sex) %>% collect()
-
-# lets filter for sex to be M or F for MALE and FEMALE
-bmoredemo_markers %>%
-  mutate(sex_id = case_when(
-    defendant_sex == ""
-  ))
-  
-
-# it appears that geocode_OSM will only take strings that look like below
-# geocode_OSM(bmore_fulladdress[3])
-# [1] "7007 N ALTER ST, BALTIMORE, MD, 21207 - 0000"
-
+bmoredemo_markers1 = bmoredemo_markers1 %>% dplyr::select(case_num, full_address, lat, lon, race_black, race_cat, age_yrs, sex_id, case_type, case_type_2) %>% group_by(case_num) %>% ungroup()
+# # A tibble: 3,095 x 10
+# # Groups:   case_num [3,095]
+# case_num full_address   lat   lon race_black race_cat age_yrs
+# <chr>      <chr>      <dbl> <dbl> <chr>      <chr>    <chr>
+# 1 3B01920… 1320 WILSON… -76.4  39.3 NONBLACK   UNKNOWN  37
+# 2 5B01934… 7007 N ALTE… -76.7  39.4 BLACK      BLACK    29
+# 3 1B01952… 909 N FULTO… -76.6  39.3 BLACK      BLACK    35
+# 4 8100980… 433 MANSE C… -76.6  39.3 BLACK      BLACK    49
+# 5 1B02053… 433 MANSE C… -76.6  39.3 BLACK      BLACK    49
+# 6 8112900… 1951 EDMOND… -76.6  39.3 BLACK      BLACK    43
+# 7 8112980… 901 N PAYSO… -76.6  39.3 BLACK      BLACK    30
+# 8 4B02138… 901 N PAYSO… -76.6  39.3 BLACK      BLACK    30
+# 9 8113070… 111 S AMITY… -76.6  39.3 BLACK      BLACK    40
+# 10 2B02143… 111 S AMITY… -76.6  39.3 BLACK      BLACK    31
+save(bmoredemo_markers1, 
+     file = here("data/tidy_data",
+                 "bmore_markers.rda"))
 # making the basemap ----------------------------------------------------------
 # playing around with leaflet
 
@@ -284,6 +320,10 @@ bmore_map = leaflet() %>%
                    options = providerTileOptions(opacity = 0.35)) %>%
   addProviderTiles(providers$Stamen.TonerLabels)
 
+# adding zoom functionality
+# setView(bmore_map,
+#         )
+
 # sets parameters for map around bmre city and county
 # setting county lines
 bmore_map = bmore_map %>%
@@ -299,13 +339,45 @@ bmore_map = bmore_map %>%
               color = "#1f004f",
               fill = FALSE) %>%
   addLayersControl(overlayGroups = c("County", "City"),
-                   baseGroups = "Cases",
+                   baseGroups = "Black/NonBlack",
                    options = layersControlOptions(collapsed = FALSE))
 
+# maybe i have to specify each thing?
+# ex:
+bmore_raceblack <- bmoredemo_markers1 %>%
+  dplyr::select(lat, lon, race_black)
+
+# using circles as advised, can use this code for other
+# instances though
+# making icons
+# raceblack_icons = iconList(
+#   Black = makeIcon("products/",
+#                    24,
+#                    # hieght ~ pixels
+#                    24),
+#   Non_Black = makeIcon("products/",
+#                        18,
+#                        18)
+#   )
+
+# apply these to respective observations
+bmore_raceblack = bmore_raceblack %>%
+  mutate(type = factor(ifelse(bmore_raceblack$race_black == "BLACK", "Black", "Non_Black")))
 
 bmore_map = bmore_map %>%
-  addMarkers(data = bmore_markers,
+  addCircles(data = bmore_raceblack,
              lng = ~lon,
              lat = ~lat,
-             group = "Cases")
+             group = "Black/NonBlack",
+             popup = bmore_raceblack$type,
+             weight = 3,
+             radius = 40,
+             stroke = TRUE,
+             fillOpacity = 0.8,
+             color = c("#050403", "#ffa500")) %>%
+  addLegend("bottomright",
+            colors = c("#050403", "#ffa500"),
+            labels = c("Black", "Non-Black"),
+            title = "Cases by Race"
+            )
 
