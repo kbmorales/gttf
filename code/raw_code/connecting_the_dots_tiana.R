@@ -101,6 +101,9 @@ mdcs_demo_dfc = bmore_demo %>%
 bmore_address = mdcs_demo_dfc %>%
   select(case_num, defendant_address, defendant_city, defendant_state, defendant_zip)
 
+# test = mdcs_demo_dfc %>%
+#   select(case_num, defendant_address, defendant_city, defendant_state, defendant_zip)
+
 # it appears that geocode_OSM will only take strings that look like below
 # geocode_OSM(bmore_fulladdress[3])
 # [1] "7007 N ALTER ST, BALTIMORE, MD, 21207 - 0000"
@@ -119,6 +122,10 @@ bmore_address$defendant_city = str_squish(bmore_address$defendant_city)
 bmore_address$defendant_state = str_squish(bmore_address$defendant_state)
 bmore_address$defendant_zip = str_squish(bmore_address$defendant_zip)
 
+# remove apt and comma from first address line
+bmore_address$defendant_address = str_remove(bmore_address$defendant_address,
+                                             "(,? APT.? \\w+.*)|(\\.? APT.?.*)|(\\/APT.?(\\d+|\\w+))|((-*)APT (\\d+|\\w+))|((,?|\\s)+\\#.*)")
+
 # take away access numbers in zip codes
 bmore_address$defendant_zip = str_trunc(bmore_address$defendant_zip,
                                         width = 5,
@@ -131,33 +138,30 @@ bmore_address$full_address = paste0(str_c(bmore_address$defendant_address, ", ",
                                           bmore_address$defendant_state, ", ",
                                           bmore_address$defendant_zip, ", USA"))
 
+# Create a index of case numbers to full address
 bmore_address = bmore_address %>%
   select(case_num, full_address)
-
-# lets use tmap package to see if we can get some coords
-bmore_demo = left_join(bmore_demo, bmore_address, by = "case_num")
 
 # have to do this in batches because the code can't take this
 # crashes at 1000 rows
  
 # the first 20 rows are not reading, only 5 rows are coming back as geocoded. 
 # going to work with these 5 for now to plot 
-geo_bmore <- geocode_OSM(bmore_demo$full_address[1:100])
-geo_bmore2 <- geocode_OSM(bmore_fulladdress[100:200])
-geo_bmore3 <- geocode_OSM(bmore_fulladdress[201:300])
+# geo_bmore <- geocode_OSM(bmore_demo$full_address[1:100])
+# geo_bmore2 <- geocode_OSM(bmore_fulladdress[100:200])
+# geo_bmore3 <- geocode_OSM(bmore_fulladdress[201:300])
 
-bmoreaddy_unique = unique(bmore_demo$full_address)
-# testing
-testing_addy <- geocode_OSM(bmoreaddy_unique[2])
+# # testing
+# testing_addy <- geocode_OSM(bmoreaddy_unique[2])
 
-geo_bmore <- c()
+# geo_bmore <- c()
 
 # amount of times i want this loop to run
-for(i in 1:round(length(bmore_demo$full_address)/100)) {
-# this helps search through 1-6400
-  test = geocode_OSM(bmore_demo$full_address[((i*100)-99):(i*100)])
-  geo_bmore <- bind_rows(geo_bmore, test)
-  }
+# for(i in 1:round(length(bmore_demo$full_address)/100)) {
+# # this helps search through 1-6400
+#   test = geocode_OSM(bmore_demo$full_address[((i*100)-99):(i*100)])
+#   geo_bmore <- bind_rows(geo_bmore, test)
+#   }
 
 # trying a repeat loop
 # 
@@ -180,29 +184,51 @@ for(i in 1:round(length(bmore_demo$full_address)/100)) {
 # i = 1:77
 
 # pick up 02.28.2019 ------------------------------------------------------
+# just remember to reference unique list to find the rows that are messed up!
+# then look by case number from bmore_address, then join to full data set bmore_demo (which will eventually replace
+# mdcs_cop_demo_df) reference demo_data.R file
+bmoreaddy_unique = unique(bmore_address$full_address)
+
 geo_bmore <- c()
 
 i <- 1
 # sometimes code will break because of 
-while(i <= nrow(bmore_demo)) {
-  geo_bmore_row <- geocode_OSM(bmore_demo[i,][["full_address"]])
+while(i <= length(bmoreaddy_unique)) {
+  geo_bmore_row <- geocode_OSM(bmoreaddy_unique[i])
   if(is.null(geo_bmore_row)){
     i <- i + 1
     next;
   }
+  # may have to rewrite in case x and y is backwards
   geo_bmore_row <- tibble(obs_num = i, 
                           address = geo_bmore_row[[1]],
+                          # up and down
                           lat = geo_bmore_row[[2]][1],
+                          # left to right
                           lon = geo_bmore_row[[2]][2]
                           )
+# creating geo_bmore sp object
   geo_bmore <- bind_rows(geo_bmore, geo_bmore_row)
   i <- i + 1
 }
 
+# Left join bmore_address to geo_bmore by full_address
+# WRITE ME
+
+# lets use tmap package to see if we can get some coords
+bmore_demo = left_join(bmore_demo, bmore_address, by = "case_num")
+
 # Take a peek at problem address (ones that break the geocode code)
-bmore_demo[i,]
+bmoreaddy_unique[i]
 # Write down the bad ones!
+# final edit ended on 3217 ~ prob hit limit
 i <- i+1
+
+
+# this only returns successful geo_code addresses, there are still addresses that are not accuonted for - addressses that OSM cannot locate
+save(geo_bmore, 
+     file = here("data/tidy_data",
+                 "geo_bmore.rda"))
 
 save(bmore_demo, 
      file = here("data/tidy_data",
