@@ -161,4 +161,21 @@ ggplot(mdcs_cops_df, aes(x = date, fill = gttf_cop, color = gttf_cop)) +
 # MDCS Demo: --------------------------------------------------------------
 
 
+# Age
+ggplot(mdcs_df,
+       aes(x = age_yrs)) +
+  geom_histogram() +
+  theme_minimal()
 
+# Race
+ggplot(mdcs_df,
+       aes(x = defendant_race)) +
+  geom_bar() +
+  coord_flip() +
+  theme_minimal()
+
+# Sex
+ggplot(mdcs_df,
+       aes(x = sex_id)) +
+  geom_bar() +
+  theme_minimal()
