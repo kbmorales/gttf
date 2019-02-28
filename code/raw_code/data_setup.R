@@ -347,6 +347,9 @@ mdcs_cops_df$gttf_cop <- factor(mdcs_cops_df$gttf_cop, levels = c("Allers",
 mdcs_cops_df <- mdcs_cops_df %>%
   filter(case_type_2 != "Other")
 
+# Filter out Circuit Court cases
+mdcs_cops_df <- mdcs_cops_df[str_detect(mdcs_cops_df$court, "District"),]
+
 
 # Final stats:
 nrow(mdcs_cops_df)
@@ -355,3 +358,9 @@ mdcs_cops_df %>% group_by(gttf_cop) %>% count()
 save(mdcs_cops_df, 
      file = here("data/tidy_data",
                  "mdcs_cops_clean_df.rda"))
+
+
+
+# mdcs_df workup ----------------------------------------------------------
+
+

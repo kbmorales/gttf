@@ -9,7 +9,7 @@ load(file = here("data/tidy_data",
                  "mdcs_cops_df.rda"))
 
 
-# Histogram ---------------------------------------------------------------
+# MDCS counts: Histogram ---------------------------------------------------------------
 
 # Set up palette for gttf_cop
 test_pal <- viridis(8, option = "D")
@@ -34,19 +34,19 @@ ggplot(mdcs_cops_df, aes(x = date,
   labs(y = "Number of cases",
        fill = "Cop",
        caption = "Bins are 30 days wide",
-       title = "Monthly court cases involving GTTF police officers",
+       title = "Monthly District Court cases involving convicted GTTF police officers",
        subtitle = "2008 - 2018") +
   geom_vline(xintercept = as.numeric(as.Date("2017-03-10")),
              linetype=4, colour="black") +
   geom_vline(xintercept = as.numeric(as.Date("2015-04-19")),
              linetype=4, colour="red") +
-  geom_text(label = "Freddie\nGray's\nDeath", x = as.numeric(as.Date("2015-04-29")), y = 135,
+  geom_text(label = "Freddie\nGray's\nDeath", x = as.numeric(as.Date("2015-04-29")), y = 85,
             vjust = "inward", 
             hjust = "outward",
             fontface = 1,
             color = "red",
             size = 4) +
-  geom_text(label = "GTTF\nOfficers\nIndicted", x = as.numeric(as.Date("2017-03-20")), y = 135,
+  geom_text(label = "GTTF\nOfficers\nIndicted", x = as.numeric(as.Date("2017-03-20")), y = 85,
             vjust = "inward", 
             hjust = "outward",
             fontface = 1,
@@ -59,7 +59,7 @@ ggplot(mdcs_cops_df, aes(x = date,
         axis.ticks.x = element_line(color="black")) 
 
 
-# Flipped histogram -------------------------------------------------------
+# MDCS counts: Flipped histogram -------------------------------------------------------
 
 
 ggplot(mdcs_cops_df, aes(x = date, 
@@ -89,7 +89,7 @@ ggplot(mdcs_cops_df, aes(x = date,
         panel.grid.minor.x = element_blank()) 
 
 
-# Histogram - separate geoms ----------------------------------------------
+# MDCS counts: Histogram - separate geoms ----------------------------------------------
 
 
 ggplot(mdcs_cops_df, aes(x = date)) +
@@ -140,7 +140,7 @@ ggplot(mdcs_cops_df, aes(x = date)) +
        caption = "Bins are 30 days wide")
 
 
-# Density Plot ------------------------------------------------------------
+# MDCS counts: Density Plot ------------------------------------------------------------
 
 
 ggplot(mdcs_cops_df, aes(x = date, fill = gttf_cop, color = gttf_cop)) +
@@ -155,3 +155,10 @@ ggplot(mdcs_cops_df, aes(x = date, fill = gttf_cop, color = gttf_cop)) +
   labs(x = "",
        y = "",
        caption = "Bins are 30 days wide")
+
+
+
+# MDCS Demo: --------------------------------------------------------------
+
+
+
