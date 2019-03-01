@@ -201,7 +201,6 @@ while(i <= length(bmoreaddy_unique)) {
     i <- i + 1
     next;
   }
-  # these are backwards. reverse lat/lon
   geo_bmore_row <- tibble(obs_num = i, 
                           full_address = geo_bmore_row[[1]],
                           # up and down
@@ -250,8 +249,7 @@ bmore_demo = left_join(bmore_demo, bmore_address, by = "case_num")
 
 # first lets figure out why this 2k cases where not running
 geo_bmore = problem_rows
-# set i to last obs_num in ge_bmre
-# i = 663
+
 
 # this only returns successful geo_code addresses, there are still addresses that are not accuonted for - addressses that OSM cannot locate
 save(geo_bmore, 
@@ -271,6 +269,13 @@ save(bmore_demo,
 # this will drop rows that were not able to find geo_codes
 # want to keep full data set. will create 2 plot data
 
+# unsure why but some addressses didnt save all the way. 
+# fixed issue in console
+# problem_rows = geo_bmore[!str_detect(geo_bmore$full_address, ", USA"), ]
+# cool_rows = geo_bmore[str_detect(geo_bmore$full_address, ", USA"), ]
+# problem_rows$full_address = paste0(str_c(problem_rows$full_address, ", USA"))
+# geo_bmore = rbind(problem_rows, cool_rows)
+
 # keeps only data that was geocoded
 bmore_plot1 <- left_join(geo_bmore, 
                         bmore_address,
@@ -281,7 +286,9 @@ bmore_plot1 <- left_join(geo_bmore,
 #                          by = "full_address")
 
 # keeps only data that was geocoded
-# only working for this data fo now
+# only working for this data for now
+
+# save under data set that has filtered out district court cases
 bmoredemo_markers1 <- left_join(bmore_plot1,
                            mdcs_demo_dfc,
                            by = "case_num")
@@ -322,11 +329,9 @@ bmoredemo_markers1 = bmoredemo_markers1 %>% dplyr::select(case_num, full_address
 # 9 8113070… 111 S AMITY… -76.6  39.3 BLACK      BLACK    40
 # 10 2B02143… 111 S AMITY… -76.6  39.3 BLACK      BLACK    31
 save(bmoredemo_markers1, 
-     file = here("data/tidy_data",
-                 "bmore_markers.rda"))
-# making the basemap ----------------------------------------------------------
-# playing around with leaflet
-
+     file = here::here("data/tidy_data",
+                       "bmore_markers.rda"))
+# making the basemap var----------------------------------------------------------
 ############## USE THIS TO MARK CRIME INCIDENTS
 # leaflet() %>%
 #   addTiles() %>%
@@ -338,13 +343,112 @@ save(bmoredemo_markers1,
 # leaflet(options = leafletOptions(minZoom = 0,
 #                                 maxZoom = 18))
 
+# set values used within map
+
+# sex
+bmore_sex <- bmoredemo_markers1 %>%
+  dplyr::select(lat, lon, sex_id, full_address)
+
+sex_icons <- colorFactor(c("#0d2666", "#53a097", "#682140"),
+                         domain = unique(bmore_sex$sex_id)
+)
+
+# mult races
+bmore_racecat <- bmoredemo_markers1 %>%
+  dplyr::select(lat, lon, race_cat, full_address)
+
+racecat_icons <- colorFactor(c("#4c3711", "#c6beaf", "#b58a3d"),
+                             domain = unique(bmore_racecat$race_cat)
+)
+
+# black/nonblack
+bmore_raceblack <- bmoredemo_markers1 %>%
+  dplyr::select(lat, lon, race_black, full_address)
+
+bmore_raceblack = bmore_raceblack %>%
+  mutate(type = factor(ifelse(bmore_raceblack$race_black == "BLACK", "Black", "Non_Black")))
+
+raceblack_icons <- colorFactor(c("#050403", "#ffa500"),
+                               domain = unique(bmore_raceblack$type))
+
+
+# map making --------------------------------------------------------------
 # creates map object
-bmore_map = leaflet() %>%
+bmore_map = leaflet() 
+bmore_map = bmore_map %>%
   addProviderTiles(providers$MtbMap,
                    options = providerTileOptions(opacity = 0.65)) %>%
   addProviderTiles(providers$Stamen.TonerLines,
                    options = providerTileOptions(opacity = 0.35)) %>%
-  addProviderTiles(providers$Stamen.TonerLabels)
+  addProviderTiles(providers$Stamen.TonerLabels) %>%
+  addPolygons(data = baltimore_county,
+              group = "County",
+              color = "#1d1030",
+              fill = FALSE) %>%
+  addPolygons(data = baltimore_city,
+              group = "City",
+              color = "#1f004f",
+              fill = FALSE) %>%
+  addLayersControl(baseGroups = c("County", 
+                                  "City"),
+                   overlayGroups = c("Black/Non-Black", 
+                                     "Black/White/Other",
+                                     "Female/Male"),
+                   options = layersControlOptions(collapsed = FALSE)) %>%
+  addCircles(data = bmore_raceblack,
+             lng = ~lon,
+             lat = ~lat,
+             group = "Black/NonBlack",
+             popup = bmore_raceblack$type,
+             weight = 3,
+             radius = 40,
+             stroke = TRUE,
+             fillOpacity = 0.8,
+             color = ~raceblack_icons(type),
+             label = ~as.character(bmore_raceblack$full_address)) %>%
+  addLegend("bottomright",
+            colors = c("#050403", "#ffa500"),
+            labels = c("Black", "Non-Black"),
+            title = "Cases by Race",
+            group = "Black/NonBlack"
+  ) %>%
+  addCircles(data = bmore_racecat,
+             lng = ~lon,
+             lat = ~lat,
+             group = "Black/White/Other",
+             popup = bmore_racecat$race_cat,
+             weight = 3,
+             radius = 40,
+             stroke = TRUE,
+             fillOpacity = 0.8,
+             color = ~racecat_icons(race_cat),
+             label = ~as.character(bmore_racecat$full_address)) %>%
+  addLegend("bottomright",
+            colors = c("#4c3711", "#c6beaf", "#b58a3d"),
+            labels = c("Black", "White", "Other/Unknown"),
+            title = "Cases by Race",
+            group = "Black/White/Other"
+  ) %>%
+  addCircles(data = bmore_sex,
+             lng = ~lon,
+             lat = ~lat,
+             group = "Female/Male",
+             popup = bmore_sex$sex_id,
+             weight = 3,
+             radius = 40,
+             stroke = TRUE,
+             fillOpacity = 0.8,
+             color = ~sex_icons(sex_id),
+             label = ~as.character(bmore_sex$sex_id)) %>%
+  addLegend("bottomright",
+            colors = c( "#53a097", "#0d2666", "#682140"),
+            labels = c("Male", "Female", "Other/Unknown"),
+            title = "Cases by Sex",
+            group = "Female/Male"
+  )
+  
+
+# map scratch code --------------------------------------------------------
 
 # adding zoom functionality
 # setView(bmore_map,
@@ -352,26 +456,29 @@ bmore_map = leaflet() %>%
 
 # sets parameters for map around bmre city and county
 # setting county lines
-bmore_map = bmore_map %>%
-  addPolygons(data = baltimore_county,
-              group = "County",
-              color = "#1d1030",
-              fill = FALSE)
+# bmore_map = bmore_map %>%
+#   addPolygons(data = baltimore_county,
+#               group = "County",
+#               color = "#1d1030",
+#               fill = FALSE)
 
 # setting city lines
-bmore_map = bmore_map %>%
-  addPolygons(data = baltimore_city,
-              group = "City",
-              color = "#1f004f",
-              fill = FALSE) %>%
-  addLayersControl(overlayGroups = c("County", "City"),
-                   baseGroups = "Black/NonBlack",
-                   options = layersControlOptions(collapsed = FALSE))
+# bmore_map = bmore_map %>%
+#   addPolygons(data = baltimore_city,
+#               group = "City",
+#               color = "#1f004f",
+#               fill = FALSE) %>%
+#   addLayersControl(baseGroups = c("County", 
+#                                   "City"),
+#                    overlayGroups = c("Black/Non-Black", 
+#                                      "Black/White/Other",
+#                                      "Female/Male"),
+#                    options = layersControlOptions(collapsed = FALSE))
 
 # maybe i have to specify each thing?
 # ex:
-bmore_raceblack <- bmoredemo_markers1 %>%
-  dplyr::select(lat, lon, race_black)
+# bmore_raceblack <- bmoredemo_markers1 %>%
+#   dplyr::select(lat, lon, race_black, full_address)
 
 # using circles as advised, can use this code for other
 # instances though
@@ -387,27 +494,83 @@ bmore_raceblack <- bmoredemo_markers1 %>%
 #   )
 
 # apply these to respective observations
-bmore_raceblack = bmore_raceblack %>%
-  mutate(type = factor(ifelse(bmore_raceblack$race_black == "BLACK", "Black", "Non_Black")))
+# bmore_raceblack = bmore_raceblack %>%
+#   mutate(type = factor(ifelse(bmore_raceblack$race_black == "BLACK", "Black", "Non_Black")))
+# 
+# raceblack_icons <- colorFactor(c("#050403", "#ffa500"),
+#                                domain = unique(bmore_raceblack$type))
 
-raceblack_icons <- colorFactor(c("050403", "#ffa500"),
-                               domain = unique(bmore_raceblack$type))
+# bmore_map = bmore_map %>%
+  # addCircles(data = bmore_raceblack,
+  #            lng = ~lon,
+  #            lat = ~lat,
+  #            group = "Black/NonBlack",
+  #            popup = bmore_raceblack$type,
+  #            weight = 3,
+  #            radius = 40,
+  #            stroke = TRUE,
+  #            fillOpacity = 0.8,
+  #            color = ~raceblack_icons(type),
+  #            label = ~as.character(bmore_raceblack$full_address)) %>%
+  # addLegend("bottomright",
+  #           colors = c("#050403", "#ffa500"),
+  #           labels = c("Black", "Non-Black"),
+  #           title = "Cases by Race",
+  #           group = "Black/NonBlack"
+  #           )
 
-bmore_map = bmore_map %>%
-  addCircles(data = bmore_raceblack,
-             lng = ~lon,
-             lat = ~lat,
-             group = "Black/NonBlack",
-             popup = bmore_raceblack$type,
-             weight = 3,
-             radius = 40,
-             stroke = TRUE,
-             fillOpacity = 0.8,
-             color = ~raceblack_icons(bmore_raceblack$type),
-             label = ~as.character(full_address)) %>%
-  addLegend("bottomright",
-            colors = c("#050403", "#ffa500"),
-            labels = c("Black", "Non-Black"),
-            title = "Cases by Race"
-            )
+####################### race_cat
 
+# bmore_racecat <- bmoredemo_markers1 %>%
+#   dplyr::select(lat, lon, race_cat, full_address)
+# 
+# racecat_icons <- colorFactor(c("#4c3711", "#c6beaf", "#b58a3d"),
+#                                  domain = unique(bmore_racecat$race_cat)
+#                              )
+
+# bmore_map = bmore_map %>%
+#   addCircles(data = bmore_racecat,
+#              lng = ~lon,
+#              lat = ~lat,
+#              group = "Black/White/Other",
+#              popup = bmore_racecat$race_cat,
+#              weight = 3,
+#              radius = 40,
+#              stroke = TRUE,
+#              fillOpacity = 0.8,
+#              color = ~racecat_icons(race_cat),
+#              label = ~as.character(bmore_racecat$full_address)) %>%
+#   addLegend("bottomright",
+#             colors = c("#4c3711", "#c6beaf", "#b58a3d"),
+#             labels = c("Black", "White", "Other/Unknown"),
+#             title = "Cases by Race",
+#             group = "Black/White/Other"
+#   )
+
+
+##################### sex_id
+
+# bmore_sex <- bmoredemo_markers1 %>%
+#   dplyr::select(lat, lon, sex_id, full_address)
+# 
+# sex_icons <- colorFactor(c("#0d2666", "#53a097", "#682140"),
+#                              domain = unique(bmore_sex$sex_id)
+# )
+
+# bmore_map = bmore_map %>%
+#   addCircles(data = bmore_sex,
+#              lng = ~lon,
+#              lat = ~lat,
+#              group = "Female/Male",
+#              popup = bmore_sex$sex_id,
+#              weight = 3,
+#              radius = 40,
+#              stroke = TRUE,
+#              fillOpacity = 0.8,
+#              color = ~sex_icons(sex_id),
+#              label = ~as.character(bmore_sex$sex_id)) %>%
+#   addLegend("bottomright",
+#             colors = c( "#53a097", "#0d2666", "#682140"),
+#             labels = c("Male", "Female", "Other/Unknown"),
+#             title = "Cases by Sex",
+#             group = "Female/Male" )
