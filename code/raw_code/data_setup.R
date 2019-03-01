@@ -5,7 +5,7 @@ library(here)
 library(readr)
 library(stringr)
 library(dplyr)
-
+library(lubridate)
 
 cops <- tibble(
   last_name = c("Allers", "Gondo", "Hendrix", "Jenkins", "Rayam", "Ward", "Hersl", "Taylor", "Clewell"),
@@ -347,6 +347,9 @@ mdcs_cops_df$gttf_cop <- factor(mdcs_cops_df$gttf_cop, levels = c("Allers",
 mdcs_cops_df <- mdcs_cops_df %>%
   filter(case_type_2 != "Other")
 
+# Filter out Circuit Court cases
+mdcs_cops_df <- mdcs_cops_df[str_detect(mdcs_cops_df$court, "District"),]
+
 
 # Final stats:
 nrow(mdcs_cops_df)
@@ -355,3 +358,39 @@ mdcs_cops_df %>% group_by(gttf_cop) %>% count()
 save(mdcs_cops_df, 
      file = here("data/tidy_data",
                  "mdcs_cops_clean_df.rda"))
+
+
+
+# mdcs_df workup ----------------------------------------------------------
+
+
+# filtering for sex
+mdcs_df %>%
+  count(defendant_sex)
+
+# creating new column
+mdcs_df = mdcs_df %>%
+  mutate(sex_id = case_when(
+    defendant_sex == "F" ~ "Female",
+    defendant_sex == "M" ~ "Male",
+    TRUE ~ "Unknown")
+  )
+
+# filtering for race
+mdcs_df %>%
+  count(defendant_race)
+
+mdcs_df = mdcs_df %>%
+  mutate(defendant_race = case_when(
+    str_detect(mdcs_df$defendant_race, "Unknown") ~ "UNKNOWN, OTHER",
+    TRUE ~ defendant_race
+  ))
+
+# filtering for age
+bmore_demo %>%
+  count(is.na(defendant_dob))
+
+# age at time of court case
+mdcs_df = mdcs_df %>%
+  mutate(age_yrs = as.numeric(round(difftime(mdcs_df$date, mdcs_df$defendant_dob, units = "days") / 365)))
+
