@@ -124,7 +124,7 @@ bmore_address$defendant_zip = str_squish(bmore_address$defendant_zip)
 
 # remove apt and comma from first address line
 bmore_address$defendant_address = str_remove(bmore_address$defendant_address,
-                                             "(,? APT.? \\w+.*)|(\\.? APT.?.*)|(\\/APT.?(\\d+|\\w+))|((-*)APT (\\d+|\\w+))|((,?|\\s)+\\#.*)")
+                                             "(,? APT.? \\w+.*)|(\\.? APT.?.*)|(\\/APT.?(\\d+|\\w+))|((-*)APT (\\d+|\\w+))|((,?|\\s)+\\#.*)|(\\s[A-Z]\\w+\\s#.*)|(,\\s.*)|(\\s[A-Z]\\w+#.*)")
 
 # take away access numbers in zip codes
 bmore_address$defendant_zip = str_trunc(bmore_address$defendant_zip,
@@ -183,7 +183,7 @@ bmore_address = bmore_address %>%
 # trying while loop
 # i = 1:77
 
-# pick up 02.28.2019 ------------------------------------------------------
+# pick up 03.01.2019 ------------------------------------------------------
 # just remember to reference unique list to find the rows that are messed up!
 # then look by case number from bmore_address, then join to full data set bmore_demo (which will eventually replace
 # mdcs_cop_demo_df) reference demo_data.R file
@@ -191,7 +191,9 @@ bmoreaddy_unique = unique(bmore_address$full_address)
 
 geo_bmore <- c()
 
-i <- 1
+# i <- 1
+# hit limit will run again at lunch
+# i = 5578
 # sometimes code will break because of 
 while(i <= length(bmoreaddy_unique)) {
   geo_bmore_row <- geocode_OSM(bmoreaddy_unique[i])
@@ -201,16 +203,17 @@ while(i <= length(bmoreaddy_unique)) {
   }
   # these are backwards. reverse lat/lon
   geo_bmore_row <- tibble(obs_num = i, 
-                          address = geo_bmore_row[[1]],
+                          full_address = geo_bmore_row[[1]],
                           # up and down
-                          lat = geo_bmore_row[[2]][1],
+                          lon = geo_bmore_row[[2]][1],
                           # left to right
-                          lon = geo_bmore_row[[2]][2]
+                          lat = geo_bmore_row[[2]][2]
                           )
 # creating geo_bmore sp object
   geo_bmore <- bind_rows(geo_bmore, geo_bmore_row)
   i <- i + 1
 }
+
 
 # Left join bmore_address to geo_bmore by full_address
 # WRITE ME
@@ -227,10 +230,33 @@ i <- i+1
 bmore_demo = left_join(bmore_demo, bmore_address, by = "case_num")
 
 
+# fixing geo_bmore row strucure
+# problem_rows <- geo_bmore %>% filter(is.na(address))
+# cool_rows <- geo_bmore %>% filter(!is.na(address))
+# 
+# problem_rows = problem_rows %>%
+#   select(-address)
+# 
+# cool_rows = cool_rows %>%
+#   select(-full_address)
+# 
+# colnames(cool_rows)[2:4] <- c("lat", "lon", "full_address")
+# 
+# geo_bmore = rbind(problem_rows, cool_rows)
+
+# separating dataframe so that I can continue geocoding
+# problem_rows <- geo_bmore[1:448, ]
+# cool_rows <- geo_bmore[449:1070, ]
+
+# first lets figure out why this 2k cases where not running
+geo_bmore = problem_rows
+# set i to last obs_num in ge_bmre
+# i = 663
+
 # this only returns successful geo_code addresses, there are still addresses that are not accuonted for - addressses that OSM cannot locate
 save(geo_bmore, 
-     file = here("data/tidy_data",
-                 "geo_bmore_unique_addy.rda"))
+     file = here::here("data/tidy_data",
+                       "geo_bmore_unique_addy.rda"))
 
 save(bmore_demo, 
      file = here("data/tidy_data",
@@ -364,6 +390,9 @@ bmore_raceblack <- bmoredemo_markers1 %>%
 bmore_raceblack = bmore_raceblack %>%
   mutate(type = factor(ifelse(bmore_raceblack$race_black == "BLACK", "Black", "Non_Black")))
 
+raceblack_icons <- colorFactor(c("050403", "#ffa500"),
+                               domain = unique(bmore_raceblack$type))
+
 bmore_map = bmore_map %>%
   addCircles(data = bmore_raceblack,
              lng = ~lon,
@@ -374,7 +403,8 @@ bmore_map = bmore_map %>%
              radius = 40,
              stroke = TRUE,
              fillOpacity = 0.8,
-             color = c("#050403", "#ffa500")) %>%
+             color = ~raceblack_icons(bmore_raceblack$type),
+             label = ~as.character(full_address)) %>%
   addLegend("bottomright",
             colors = c("#050403", "#ffa500"),
             labels = c("Black", "Non-Black"),
