@@ -12,6 +12,8 @@ library(ggmap)
 library(maps)
 library(tmap)
 library(tmaptools)
+# saves map
+library(htmlwidgets)
 
 options(stringAsFactors = FALSE)
 
@@ -30,12 +32,13 @@ options(stringAsFactors = FALSE)
 # unzip(zipfile = "Maryland Counties.zip",
 #       exdir = "md_counties")
 
-# load the data
-zipcode_sections <- readOGR("data/raw_data/md_zipcodes/geo_export_md.shp")
+# # load the data
+# unusable data, bbox bounds are not written in lat or lon ~ finding other shp files
+# zipcode_sections <- readOGR("data/raw_data/distinct_city_zips/ZIP_Codes.shp")
 
 county_sections <- readOGR("data/raw_data/md_counties/geo_export_mdc.shp")
 
-# view attributes ---------- ZIPCODES
+# # view attributes ---------- ZIPCODES
 class(zipcode_sections)
 extent(zipcode_sections)
 crs(zipcode_sections)
@@ -56,13 +59,9 @@ plot(county_sections)
 baltimore_county <- subset(county_sections, geodesc == "Baltimore County")
 baltimore_city <- subset(county_sections, geodesc == "Baltimore City")
 
-
-# lets do a quick plot to see if this shows!
-plot(baltimore_zip)
-plot(baltimore_city)
-
-
-
+city_county <- subset(county_sections, 
+                      geodesc == "Baltimore County" | 
+                      geodesc == "Baltimore City")
 # cleaning data points for map MARKERS ONLY --------------------------------------------
 # lets filter through some of the data to see if we can plot on our base map!
 
@@ -346,38 +345,22 @@ save(bmoredemo_markers1,
 # set values used within map
 
 # sex
-bmore_sex <- bmoredemo_markers1 %>%
-  dplyr::select(lat, lon, sex_id, full_address)
-
 sex_icons <- colorFactor(c("#0d2666", "#53a097", "#682140"),
-                         domain = unique(bmore_sex$sex_id)
-)
+                         domain = unique(bmoredemo_markers1$sex_id))
 
 # mult races
-bmore_racecat <- bmoredemo_markers1 %>%
-  dplyr::select(lat, lon, race_cat, full_address)
-
 racecat_icons <- colorFactor(c("#4c3711", "#c6beaf", "#b58a3d"),
-                             domain = unique(bmore_racecat$race_cat)
-)
+                             domain = unique(bmoredemo_markers1$race_cat))
 
 # black/nonblack
-bmore_raceblack <- bmoredemo_markers1 %>%
-  dplyr::select(lat, lon, race_black, full_address)
-
-bmore_raceblack = bmore_raceblack %>%
-  mutate(type = factor(ifelse(bmore_raceblack$race_black == "BLACK", "Black", "Non_Black")))
-
 raceblack_icons <- colorFactor(c("#050403", "#ffa500"),
-                               domain = unique(bmore_raceblack$type))
+                               domain = unique(bmoredemo_markers1$race_black))
 
 
 # map making --------------------------------------------------------------
 # creates map object
 bmore_map = leaflet() 
 bmore_map = bmore_map %>%
-  addProviderTiles(providers$MtbMap,
-                   options = providerTileOptions(opacity = 0.65)) %>%
   addProviderTiles(providers$Stamen.TonerLines,
                    options = providerTileOptions(opacity = 0.35)) %>%
   addProviderTiles(providers$Stamen.TonerLabels) %>%
@@ -389,22 +372,28 @@ bmore_map = bmore_map %>%
               group = "City",
               color = "#1f004f",
               fill = FALSE) %>%
+  # data not in readable format ~ looking for different .shp files
+  # addPolygons(data = zipcode_sections,
+  #             group = "City Zip Code",
+  #             color = "#660934",
+  #             fill = FALSE) %>%
   addLayersControl(baseGroups = c("County", 
-                                  "City"),
+                                  "City",
+                                  "City Zip Code"),
                    overlayGroups = c("Black/Non-Black", 
                                      "Black/White/Other",
                                      "Female/Male"),
                    options = layersControlOptions(collapsed = FALSE)) %>%
-  addCircles(data = bmore_raceblack,
+  addCircles(data = bmoredemo_markers1,
              lng = ~lon,
              lat = ~lat,
              group = "Black/NonBlack",
-             popup = bmore_raceblack$type,
+             popup = bmoredemo_markers1$race_black,
              weight = 3,
              radius = 40,
              stroke = TRUE,
              fillOpacity = 0.8,
-             color = ~raceblack_icons(type),
+             color = ~raceblack_icons(race_black),
              label = ~as.character(bmore_raceblack$full_address)) %>%
   addLegend("bottomright",
             colors = c("#050403", "#ffa500"),
@@ -412,41 +401,44 @@ bmore_map = bmore_map %>%
             title = "Cases by Race",
             group = "Black/NonBlack"
   ) %>%
-  addCircles(data = bmore_racecat,
+  addCircles(data = bmoredemo_markers1,
              lng = ~lon,
              lat = ~lat,
              group = "Black/White/Other",
-             popup = bmore_racecat$race_cat,
+             popup = bmoredemo_markers1$race_cat,
              weight = 3,
              radius = 40,
              stroke = TRUE,
              fillOpacity = 0.8,
              color = ~racecat_icons(race_cat),
-             label = ~as.character(bmore_racecat$full_address)) %>%
+             label = ~as.character(bmoredemo_markers1$full_address)) %>%
   addLegend("bottomright",
             colors = c("#4c3711", "#c6beaf", "#b58a3d"),
             labels = c("Black", "White", "Other/Unknown"),
-            title = "Cases by Race",
+            title = "Cases by Race Mult",
             group = "Black/White/Other"
   ) %>%
-  addCircles(data = bmore_sex,
+  addCircles(data = bmoredemo_markers1,
              lng = ~lon,
              lat = ~lat,
              group = "Female/Male",
-             popup = bmore_sex$sex_id,
+             popup = bmoredemo_markers1$sex_id,
              weight = 3,
              radius = 40,
              stroke = TRUE,
              fillOpacity = 0.8,
              color = ~sex_icons(sex_id),
-             label = ~as.character(bmore_sex$sex_id)) %>%
+             label = ~as.character(bmoredemo_markers1$sex_id)) %>%
   addLegend("bottomright",
             colors = c( "#53a097", "#0d2666", "#682140"),
             labels = c("Male", "Female", "Other/Unknown"),
             title = "Cases by Sex",
             group = "Female/Male"
   )
-  
+
+# saves map
+saveWidget(bmore_map,
+           file = here::here("products/bmore_map.html"))
 
 # map scratch code --------------------------------------------------------
 
