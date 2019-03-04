@@ -192,7 +192,7 @@ geo_bmore <- c()
 
 # i <- 1
 # hit limit will run again at lunch
-# i = 5578
+# i = 6328
 # sometimes code will break because of 
 while(i <= length(bmoreaddy_unique)) {
   geo_bmore_row <- geocode_OSM(bmoreaddy_unique[i])
@@ -212,20 +212,77 @@ while(i <= length(bmoreaddy_unique)) {
   i <- i + 1
 }
 
-
-# Left join bmore_address to geo_bmore by full_address
-# WRITE ME
+# original data was pulled in section below
+# LOOK AT THIS FILE TO SEE HOW DATA WAS AGGREGATED
+# "cloud/project/code/raw_code/no_geo_workup.R"
+geo_bmore <- bind_rows(geo_bmore, new_geo)
+geo_bmore = geo_bmore %>% arrange(obs_num)
+# nrow(geo_bmore)
+# 5585
 
 # Take a peek at problem address (ones that break the geocode code)
 bmoreaddy_unique[i]
 
 # Write down the bad ones!
-# final edit ended on 3217 ~ prob hit query limit for day
 i <- i+1
+
+
+# pick up 03.05.2019 ------------------------------------------------------
+#
+
+# currently running into a problem:
+# new rows have been added into geo_bmore
+# but they != bmore_demo$fulladdress 
+# because i str_c() them differently.
+# unable to properly left_join
+# .................. yea
+# could possibly str_c(new_geo) into old problem_rows?
+# unsure if this will work
+# stringr::str_match??
+
+# DID NOT RETURN DESIRED OUTPUT
+# # ref: https://cran.r-project.org/web/packages/arsenal/vignettes/compare.html
+# library(arsenal)
+# summary(compare(bmore_demo, geo_bmore[1:3135]))
+
+# let's try using intersect
+# intersect(bmore_demo, geo_bmore)
+# intersect(bmore_demo$full_address, geo_bmore$full_address)
+# does not work!!!!!
+
+#                      START HERE
+# TRYING TO MATCH THE STRINGS WITH REGREX R
+# use f ?gsub()
+
+
+
+# LOAD ORIGINAL BMORE_DEMO -- ONLY RUN TO REJOIN DATASET
+# nrow(bmore_demo)
+# 7687
+# load("data/tidy_data/bmore_demo.rda")
+
+
+# RUN TO SEMI MATCH DATASET
+# bmore_demo$full_address = paste0(str_c(bmore_demo$full_address, ", USA"))
+
 
 # DO NOT RUN UNTIL ALL HAVE BEEN ACCOUNTED FOR
 # lets use tmap package to see if we can get some coords
-bmore_demo = left_join(bmore_demo, bmore_address, by = "case_num")
+bmore_demo = left_join(geo_bmore, bmore_demo, by = "full_address")
+# nrow(bmore_demo)
+# 5731
+
+
+# FILTER FOR ONLY DISTRICT COURT CASES
+bmore_demo <- bmore_demo %>%
+  filter(case_type_2 != "Other")
+# nrow(bmore_demo)
+# 5401
+
+# Filter out Circuit Court cases
+bmore_demo <- bmore_demo[str_detect(bmore_demo$court, "District"),]
+# nrow(bmore_demo)
+# 3135
 
 
 # fixing geo_bmore row strucure
@@ -247,7 +304,7 @@ bmore_demo = left_join(bmore_demo, bmore_address, by = "case_num")
 # cool_rows <- geo_bmore[449:1070, ]
 
 # first lets figure out why this 2k cases where not running
-geo_bmore = problem_rows
+# geo_bmore = problem_rows
 
 
 # this only returns successful geo_code addresses, there are still addresses that are not accuonted for - addressses that OSM cannot locate
@@ -256,8 +313,78 @@ save(geo_bmore,
                        "geo_bmore_unique_addy.rda"))
 
 save(bmore_demo, 
-     file = here("data/tidy_data",
-                 "bmore_demo.rda"))
+     file = here::here("data/tidy_data",
+                       # added _geo for this particular thing. 
+                       # don't want to overwrite data
+                       "bmore_demo_geo.rda"))
+
+
+# address_not_inlcuded_qualityControl -------------------------------------
+
+# figuring out the addresses that weren't geo_coded
+# maybe reverse loop of above?
+# or an anti-join??
+# techinally becase bmoreaddy_unique is just
+# unique(bmore_address$full_address) lets make
+# bmoreaddy_unique into a tibble
+# for (i in 1:length(unique(bmore_address$full_address))) {
+#   bmoreaddy_unique = tibble(
+#     full_address = unique(bmore_address$full_address),
+#     obs_num = i)
+#   if(!is.null(bmoreaddy_unique)){
+#     i <- i + 1
+#     next;
+#   }
+# }
+
+# not creating new varibles, so im just going to do it like this
+# three different ways to anti_join
+# 1
+no_geo_unique <- unique(bmore_address$full_address[!bmore_address$full_address%in%geo_bmore$full_address])
+
+# 2
+no_geo <- bmore_address[is.na(match(bmore_address$full_address, geo_bmore$full_address)), ]
+
+# 3
+anti_join(bmore_address, geo_bmore, by = "full_address")
+
+#                           LOOKING FOR TRENDS
+# places within outside city lines are not used in same address format
+# Example:
+#                       no_geo data.frame
+# obs_num   case_num            full_address
+# 45	     0B02145304	  2310 LORRETTA AVE, BALTIMORE, MD, 21223, USA
+# 1	       0B01939987	  1208 WINDSAIL ROAD, ESSEX, MD, 21221, USA
+# 5	       208059029	  220 LOZERNE AVE, BALTIMORE, MD, 21224, USA
+# 10	     211307017	  6226 CAPORE WAY, BALTIMORE, MD, 21224, USA
+# 17	     211356011	  1404 S WARD STREET, BALTIMORE, MD, 21230, USA
+# 18 	     811280003	  7016 ARION RD, BALTIMORE, MD, 21234, USA ~ NA, PERIODT
+# 19	     811290023	  1951 EDMONDSON AVE, BALTIMORE, MD, 21223, USA
+# 20	     811291043	  11 W CLEMENTS STREET, BALTIMORE, MD, 21230, USA
+# 29	     0B02131381	  20 CARROLLVIEW AVE, WESTMINSTER, MD, 21157, USA
+# 31	     0B02136631	  8154 ELIZABETH ROAD, PASADENA, MD, 21122, USA
+
+
+
+# what openstreetmaps.org needs for input to find this address:
+#  Lorretta Alley, Linton at Ballenger, Ballenger Creek, Frederick County, Maryland, 21703, USA
+#  1208, Windsail Road, Hartland Run, Port Cherry Gardens Farm, Baltimore County, Maryland, 21221, USA
+# 220, North Luzerne Avenue, McElderry Park, Baltimore, Maryland, 21224, USA
+# 6226, Copore Way, O'Donnell Heights, Baltimore, Maryland, 21224, USA
+# 1404, Ward Street, Washington Village, Baltimore, Maryland, 21230, USA
+# NOT FOUND ~ PERIODT
+# 1951, Edmondson Avenue, Midtown-Edmonson, Baltimore, Maryland, 21223, USA
+# 11, West Clement Street, Sharp-Leadenhall, Baltimore, Maryland, 21230, USA
+# 20, Carroll View Avenue, Westminster Historic District, Westminster, Carroll County, Maryland, 21157, USA
+# 8154, Elizabeth Road, Blossom Hills, Anne Arundel County, Maryland, 21122, USA
+
+
+# WHEN ENTERING ADDRESSSES ON OPENSTREETMAPS.ORG, CERTAIN PLACES COME UP WHEN
+# ONLY THE STREET ADDRESS, STATE, COUNTRY
+# GOING TO FIX DATA ACCORDINGLY
+
+# let's un-do, then re-do
+
 
 # creating markers --------------------------------------------------------
 
