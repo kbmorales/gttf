@@ -164,7 +164,7 @@ ggplot(mdcs_cops_df, aes(x = date, fill = gttf_cop, color = gttf_cop)) +
 # Age
 ggplot(mdcs_df,
        aes(x = age_yrs)) +
-  geom_histogram() +
+  geom_histogram(binwidth = 1) +
   theme_minimal()
 
 # Race
@@ -179,3 +179,35 @@ ggplot(mdcs_df,
        aes(x = sex_id)) +
   geom_bar() +
   theme_minimal()
+
+
+
+# MDCS Charges ------------------------------------------------------------
+
+
+mdcs_charges_df %>% count(charge_desc_2) %>% arrange(desc(n)) %>%
+  ggplot(aes(x = reorder(charge_desc_2, n), y = n)) +
+  geom_col(aes(fill = charge_desc_2)) +
+  coord_flip() +
+  labs(x = "Charge Type",
+       y = "Count") +
+  theme_minimal() +
+  scale_fill_viridis(discrete = TRUE) +
+  theme(legend.position = "none")
+  
+
+
+# Race by Charge ----------------------------------------------------------
+
+
+mdcs_charges_df %>% 
+  left_join(mdcs_df) %>% 
+  ggplot(aes(x = charge_desc_2, fill = defendant_race)) + 
+  geom_bar() + 
+  # coord_flip() + 
+  theme_minimal() + 
+  scale_fill_viridis(discrete = TRUE) + 
+  theme(legend.position = "right",
+        axis.text.x = element_text(face = "bold", angle = 45, hjust = 1, vjust = 1)) + 
+  labs(x = "Charge Type", y = "Count", fill = "Defendant Race") 
+  

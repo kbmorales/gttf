@@ -12,11 +12,10 @@ library(stringr)
 library(httr)
 library(rebus)
 library(dplyr)
-library(here)
 
 # Load cops db
-load(here("data/tidy_data",
-          "mdcs_cops_df.rda"))
+load(here::here("data/tidy_data",
+                "mdcs_cops_df.rda"))
 
 
 # Scrape setup of case numbers --------------------

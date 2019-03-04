@@ -7,22 +7,20 @@
 # Setup -------------------------------------------------------------------
 
 
-library(rvest)
 library(stringr)
 library(httr)
 library(rebus)
 library(dplyr)
-library(here)
 library(readr)
 library(stringr)
 
 # Load cops db
-load(here("data/tidy_data",
-          "mdcs_cops_df.rda"))
+load(here::here("data/tidy_data",
+                "mdcs_cops_df.rda"))
 
 # Load in scraped dataset
-load(file = here("data/raw_data",
-                 "mdcs_case_data.rda"))
+load(file = here::here("data/raw_data",
+                       "mdcs_case_data.rda"))
 
 # MDCS Demographic Data -----------------------------------------------
 
@@ -191,10 +189,11 @@ for(i in 1:length(unique(mdcs_all_data$case_num))) {
    case <- mdcs_all_data %>% 
      filter(case_num == unique(mdcs_all_data$case_num)[i])
    # If a District Court Case
+   rows <- sum(str_detect(case$all_dat, "Charge No:")) 
    case_charge <-
      # if(str_detect(mdcs_cops_df[mdcs_cops_df$case_num == unique(mdcs_all_data$case_num)[i], 5], "District")) 
      # {
-       tibble(
+     tibble(
          case_num = unique(mdcs_all_data$case_num)[i],
          case_court = "District",
          charge_num = case[str_which(case$all_dat, "Charge No:") +1, 2],
@@ -211,79 +210,150 @@ for(i in 1:length(unique(mdcs_all_data$case_num))) {
                                       format = "%m/%d/%Y"
                                       ),
          charge_victim_age = case[str_which(case$all_dat, "Victim Age:") +1, 2],
-         charge_plea = case[str_which(case$all_dat, "Plea:") +1, 2],
-         charge_disposition = if("^Disposition:" %in% case$all_dat){
-           case[str_which(case$all_dat, "^Disposition:") +1, 2]
-         } else {
-           NA
-         },
-         charge_disp_date = if("Disposition Date:" %in% case$all_dat){
-           as.Date(case[str_which(case$all_dat, "Disposition Date:") +1, 2],
-                   format = "%m/%d/%Y"
-           )
-         } else {
-           NA
-         },
-         charge_fine = as.numeric(
-           str_remove(
-             case[str_which(case$all_dat, "Fine:") +1, 2][c(TRUE, FALSE)]
-             , "\\$")
+         charge_plea = c(case[str_which(case$all_dat, "Plea:") +1, 2],
+                         rep(NA, rows - sum(str_detect(case$all_dat, "Plea:")
+                                            )
+                             )
+                         ),
+         charge_disposition = c(case[str_which(case$all_dat, "^Disposition:") +1, 2],
+                                rep(NA, rows - sum(str_detect(case$all_dat, "^Disposition:")
+                                                   )
+                                    )
+                                ),
+         charge_disp_date = c(as.Date(case[str_which(case$all_dat, "Disposition Date:") +1, 2],
+                     format = "%m/%d/%Y"),
+                     rep(NA, rows - sum(str_detect(case$all_dat, "Disposition Date")
+                                        )
+                         )
+                     ),
+         charge_fine = if("Fine:" %in% case$all_dat)
+           {
+           c(as.numeric(
+           str_remove(case[str_which(case$all_dat, "Fine:") +1, 2][c(TRUE, FALSE)], "\\$")
            ),
-         charge_court_costs = as.numeric(
-           str_remove(
-             case[str_which(case$all_dat, "Court Costs:") +1, 2][c(TRUE, FALSE)]
-             , "\\$")
-         ),
-         charge_cicf = as.numeric(
+         rep(NA, rows - sum(str_detect(case$all_dat, "Fine:")[c(TRUE, FALSE)]
+                            )
+             )
+         )
+           } else {
+             NA
+           },
+         charge_court_costs = if("Court Costs:" %in% case$all_dat)
+           {
+           c(as.numeric(
+           str_remove(case[str_which(case$all_dat, "Court Costs:") +1, 2][c(TRUE, FALSE)], "\\$")
+           ),
+         rep(NA, rows - sum(str_detect(case$all_dat, "Court Costs:")[c(TRUE, FALSE)]
+                            )
+             )
+         )
+           } else {
+             NA
+           },
+         charge_cicf = if("CICF:" %in% case$all_dat)
+           {
+           c(as.numeric(
            str_remove(
              case[str_which(case$all_dat, "CICF:") +1, 2][c(TRUE, FALSE)]
              , "\\$")
          ),
-         charge_susp_fine = as.numeric(
-           str_remove(
-             case[str_which(case$all_dat, "Fine:") +1, 2][c(FALSE, TRUE)]
-             , "\\$")
-         ),
-         charge_susp_court_costs = as.numeric(
-           str_remove(
-             case[str_which(case$all_dat, "Court Costs:") +1, 2][c(FALSE, TRUE)]
-             , "\\$")
-         ),
-         charge_susp_cicf = as.numeric(
-           str_remove(
-             case[str_which(case$all_dat, "CICF:") +1, 2][c(FALSE, TRUE)]
-             , "\\$")
-         ),
-         charge_pbj_end_date = case[str_which(case$all_dat, "PBJ EndDate:") +1, 2],
-         charge_prob_end_date = case[str_which(case$all_dat, "Probation End Date:") +1, 2],
-         charge_rest_amt = as.numeric(
-           str_remove(
-             case[str_which(case$all_dat, "Restitution Amount:") +1, 2]
-             , "\\$")
-           ),
-         # Does total jail time?
-         charge_jailtime = as.numeric(
-           case[str_which(case$all_dat, "Yrs:") +1, 2][c(TRUE, FALSE)]
-           ) + 
-           as.numeric(
-             case[str_which(case$all_dat, "Mos:") +1, 2][c(TRUE, FALSE)]
-           )/12 +
-           as.numeric(
-             case[str_which(case$all_dat, "Days:") +1, 2][c(TRUE, FALSE)]
-           )/365,
-         charge_susp_jailtime = as.numeric(
-           case[str_which(case$all_dat, "Yrs:") +1, 2][c(FALSE, TRUE)]
-         ) + 
-           as.numeric(
-             case[str_which(case$all_dat, "Mos:") +1, 2][c(FALSE, TRUE)]
-           )/12 +
-           as.numeric(
-             case[str_which(case$all_dat, "Days:") +1, 2][c(FALSE, TRUE)]
-           )/365,
-         charge_credit_timeserved = as.numeric(
-           case[str_which(case$all_dat, "Credit Time Served:") +1, 2]
+         rep(NA, rows - sum(str_detect(case$all_dat, "CICF:")[c(TRUE, FALSE)]
+                            )
+             )
          )
-       )
+           } else {
+             NA
+           },
+         charge_susp_fine = if("Fine:" %in% case$all_dat)
+           {
+           c(as.numeric(
+           str_remove(
+             case[str_which(case$all_dat, "Fine:") +1, 2][c(FALSE, TRUE)], "\\$")
+           ),
+         rep(NA, rows - sum(str_detect(case$all_dat, "Fine:")[c(FALSE, TRUE)]
+                            )
+             )
+         )
+           } else {
+             NA
+           },
+         charge_susp_court_costs = if("Court Costs:" %in% case$all_dat)
+           {
+           c(as.numeric(
+           str_remove(
+             case[str_which(case$all_dat, "Court Costs:") +1, 2][c(FALSE, TRUE)], "\\$")
+         ),
+         rep(NA, rows - sum(str_detect(case$all_dat, "Court Costs:")[c(FALSE, TRUE)]
+                            )
+             )
+         )
+          } else {
+            NA
+          },
+         charge_susp_cicf = if("CICF:" %in% case$all_dat)
+           {
+           c(as.numeric(
+           str_remove(
+             case[str_which(case$all_dat, "CICF:") +1, 2][c(FALSE, TRUE)], "\\$")
+         ),
+         rep(NA, rows - sum(str_detect(case$all_dat, "CICF:")[c(FALSE, TRUE)]
+                            )
+             )
+         )
+           } else {
+             NA
+           },
+         charge_pbj_end_date = c(case[str_which(case$all_dat, "PBJ EndDate:") +1, 2],
+                                 rep(NA, rows - sum(str_detect(case$all_dat, "PBJ EndDate:")
+                                                    )
+                                     )
+                                 ),
+         charge_prob_end_date = c(case[str_which(case$all_dat, "Probation End Date:") +1, 2],
+                                  rep(NA, rows - sum(str_detect(case$all_dat, "Probation End Date:")
+                                                     )
+                                      )
+                                  ),
+         charge_rest_amt = c(as.numeric(
+           str_remove(
+               case[str_which(case$all_dat, "Restitution Amount:") +1, 2], "\\$")
+           ),
+           rep(NA, rows - sum(str_detect(case$all_dat, "Restitution Amount:")
+                              )
+               )
+           ),
+         charge_jailtime = if("Jail Term:" %in% case$all_dat)
+           {
+           c(as.numeric(
+           case[str_which(case$all_dat, "Yrs:") +1, 2][c(TRUE, FALSE)]) + 
+             as.numeric(case[str_which(case$all_dat, "Mos:") +1, 2][c(TRUE, FALSE)])/12 +
+             as.numeric(case[str_which(case$all_dat, "Days:") +1, 2][c(TRUE, FALSE)])/365,
+           rep(NA, rows - sum(str_detect(case$all_dat, "Jail Term:")
+                              )
+               )
+           )
+           } else {
+             NA
+           },
+         charge_susp_jailtime = if("Suspended Term:" %in% case$all_dat)
+           {
+           c(as.numeric(
+           case[str_which(case$all_dat, "Yrs:") +1, 2][c(FALSE, TRUE)]) + 
+             as.numeric(case[str_which(case$all_dat, "Mos:") +1, 2][c(FALSE, TRUE)])/12 +
+             as.numeric(case[str_which(case$all_dat, "Days:") +1, 2][c(FALSE, TRUE)])/365,
+           rep(NA, rows - sum(str_detect(case$all_dat, "Suspended Term:")
+                              )
+               )
+         )
+           } else {
+             NA
+           },
+         charge_credit_timeserved = c(as.numeric(
+             case[str_which(case$all_dat, "Credit Time Served:") +1, 2]),
+             rep(NA, rows - sum(str_detect(case$all_dat, "Credit Time Served:")
+                                )
+                 )
+             )
+         )
    #     } 
    # else { 
    #   # For Circuit court cases
@@ -322,13 +392,101 @@ for(i in 1:length(unique(mdcs_all_data$case_num))) {
    mdcs_charges_df <- bind_rows(mdcs_charges_df, case_charge)
 }
 
-# Manual checking of cases:
-
-case <- mdcs_all_data %>% filter(case_num == unique(mdcs_all_data$case_num)[i])
-View(case)
-# weird_cases[[x]] <- test_data
-# i <- i + 1
-
-rm(i)
+# Save charges dataset
+save(mdcs_charges_df,
+     file = here::here("data/tidy_data",
+                       "mdcs_charges_data.rda")
+)
 
 
+
+# MDCS Charges Workup -----------------------------------------------------
+
+
+# Check out charges
+View(mdcs_charges_df %>% group_by(charge_statute) %>% count(charge_desc) %>% arrange(desc(n)))
+
+
+# New assignment for charges
+mdcs_charges_df <- mdcs_charges_df %>%
+  mutate(
+    charge_desc_2 = case_when(
+      charge_statute == "CR.5.601.(a)(1)" & 
+        !str_detect(charge_desc, "NOT") | 
+        str_detect(charge_desc, "POSSESSION - MARI") ~ "Marijuana Possession",
+      charge_statute == "CR.5.601.(a)(1)" & 
+        str_detect(charge_desc, "NOT|POSSESS-NOT") |
+        str_detect(charge_desc, "POSSESS-NOT") ~ "Non-Marijuana Possession",
+      str_detect(charge_statute, "CR.5.602") | 
+        str_detect(charge_desc, "DIST") |
+        str_detect(charge_desc, "NARC POSS W/INTENT") ~ "CDS Distribituion / Manufacture",
+      str_detect(charge_desc, "PARA") ~ "CDS Paraphernalia Possession",
+      str_detect(charge_desc, "FIREARM|RFL|RIFLE|GUN|AMMO") ~ "Firearms-related",
+      str_detect(charge_desc, "ASSAULT") ~ "Assault",
+      str_detect(charge_desc, "ARREST") ~ "Resisting Arrest",
+      str_detect(charge_desc, "TRESPASS") ~ "Trespassing",
+      str_detect(charge_desc, "THEFT|ROBB|BURG") ~ "Theft / Burglary / Robbery",
+      str_detect(charge_desc, "DISORDERLY CONDUCT") ~ "Disorderly Conduct",
+      TRUE ~ "Other"
+    )
+  ) 
+
+
+
+# Network dataset ---------------------------------------------------------
+
+
+# Create charges dataset
+mdcs_network_df <- c()
+
+for(i in 1:length(unique(mdcs_all_data$case_num))) {
+  case <- mdcs_all_data %>% 
+    filter(case_num == unique(mdcs_all_data$case_num)[i])
+  # If a District Court Case
+  rows <- sum(str_detect(case$all_dat, "^Name:")) 
+  case_network <-
+    # if(str_detect(mdcs_cops_df[mdcs_cops_df$case_num == unique(mdcs_all_data$case_num)[i], 5], "District")) 
+    # {
+    tibble(
+      case_num = unique(mdcs_all_data$case_num)[i],
+      defendant_name = case[str_which(case$all_dat, "Defendant Name:")+1, 2],
+      connection_name = case[str_which(case$all_dat, "^Name:")+1, 2],
+      connection_type = case[str_which(case$all_dat, "Connection:")+1, 2]
+    )
+  mdcs_network_df <- bind_rows(mdcs_network_df, case_network)
+}
+
+
+
+# Network Workup ----------------------------------------------------------
+
+
+# Remove blank rows
+mdcs_network_df <- mdcs_network_df %>% filter(connection_name != "")
+
+# Clean up GTTF officer names (at least for now)
+mdcs_network_df <- mdcs_network_df %>% 
+  mutate(
+    connection_name = replace(
+      connection_name, str_detect(mdcs_network_df$connection_name, "ALLERS"), "ALLERS, THOMAS"),
+    connection_name = replace(
+      connection_name, str_detect(mdcs_network_df$connection_name, "GONDO"), "GONDO, MOMODU"),
+    connection_name = replace(
+      connection_name, str_detect(mdcs_network_df$connection_name, "HENDRIX"), "HENDRIX, EVODIO"),
+    connection_name = replace(
+      connection_name, str_detect(mdcs_network_df$connection_name, "HERSL"), "HERSL, DANIEL"),
+    connection_name = replace(
+      connection_name, str_detect(mdcs_network_df$connection_name, "JENKINS, W"), "JENKINS, WAYNE"),
+    connection_name = replace(
+      connection_name, str_detect(mdcs_network_df$connection_name, "RAYAM"), "RAYAM, JEMELL"),
+    connection_name = replace(
+      connection_name, str_detect(mdcs_network_df$connection_name, "TAYLOR, [MO]"), "TAYLOR, MARCUS"),
+    connection_name = replace(
+      connection_name, str_detect(mdcs_network_df$connection_name, "^WARD, M"), "WARD, MAURICE")
+    ) 
+
+# Save dataset
+save(mdcs_network_df,
+     file = here::here("data/tidy_data",
+                       "mdcs_network_data.rda")
+)
