@@ -38,13 +38,6 @@ options(stringAsFactors = FALSE)
 
 county_sections <- readOGR("data/raw_data/md_counties/geo_export_mdc.shp")
 
-# # view attributes ---------- ZIPCODES
-class(zipcode_sections)
-extent(zipcode_sections)
-crs(zipcode_sections)
-
-plot(zipcode_sections)
-
 # view attributes ---------- COUNTIES
 class(county_sections)
 extent(county_sections)
@@ -58,7 +51,6 @@ plot(county_sections)
 # baltimore only
 baltimore_county <- subset(county_sections, geodesc == "Baltimore County")
 baltimore_city <- subset(county_sections, geodesc == "Baltimore City")
-
 city_county <- subset(county_sections, 
                       geodesc == "Baltimore County" | 
                       geodesc == "Baltimore City")
@@ -99,6 +91,7 @@ mdcs_demo_dfc = bmore_demo %>%
 # I only want two cols and unite them again and back into dataset
 bmore_address = mdcs_demo_dfc %>%
   select(case_num, defendant_address, defendant_city, defendant_state, defendant_zip)
+
 
 # test = mdcs_demo_dfc %>%
 #   select(case_num, defendant_address, defendant_city, defendant_state, defendant_zip)
@@ -254,6 +247,84 @@ i <- i+1
 # TRYING TO MATCH THE STRINGS WITH REGREX R
 # use f ?gsub()
 
+# using Ken's advice to re-create then join by row and obs col #
+# recreating sample set to join
+problem_rows = as_tibble(str_split_fixed(unique(no_geo$full_address),
+                                         ", ",
+                                         n = 5))
+problem_rows = paste0(str_c(problem_rows$V1,
+                            ", ",
+                            problem_rows$V2,
+                            ", ",
+                            problem_rows$V3,
+                            ", ",
+                            problem_rows$V4,
+                            ", ",
+                            problem_rows$V5
+))
+# converts from vector to df or tibble
+problem_rows = enframe(problem_rows)
+
+# renaming for future cleaning
+colnames(problem_rows)[1] <- "rowname"
+colnames(problem_rows)[2] <- "full_address2"
+
+# adds correct obs_num to tbl_df/tbl/data.frame
+# only allowed if col is called rowname
+problem_rows = problem_rows %>%
+  mutate(rowname = rownames(no_geo))
+
+# resetting column to join!
+colnames(problem_rows)[1] <- "obs_num"
+problem_rows = unique(problem_rows$full_address2)
+
+# we are now set back similar to the join with other data set!
+# head(problem_rows) ~ tibble
+#   obs_num                 full_address
+# 1 1           1208 WINDSAIL ROAD, ESSEX, MD, 21221, USA   
+# 2 5           220 LOZERNE AVE, BALTIMORE, MD, 21224, USA  
+# 3 6           1631 N BRADFORD, BALTIMORE, MD, 21213, USA  
+# 4 7           708 DEACON HILL CT, BROOKLYN, MD, 21225, USA
+# 5 10          6226 CAPORE WAY, BALTIMORE, MD, 21224, USA  
+# 6 11          6226 CAPORE WAY, BALTIMORE, MD, 21224, USA  
+
+
+# figuring out which rows are kept
+# kept_addy <- problem_rows$obs_num[!problem_rows$obs_num%in%new_geo$obs_num]
+# 
+# if(problem_rows$obs_num %in% 1:length(new_geo$obs_num)) {
+#   cbind(new_geo, problem_rows)
+# }
+
+# union(new_geo, no_geo, by = "full_address")
+
+# FINALLY GOT WHAT I WANTED.
+# THIS ALLOWS ME TO KEEP THE OBSERVATIONS I WANT
+# WHILE ALSO BEING ABLE TO ADD full_address2 COL
+# turned no_geo to no_geo_case because it incudes `$case_num`
+# no_geo does not have `$case_num``
+no_geo_case = no_geo
+# taking away so I can get unique values
+# have `no_geo_case`to ref for `$case_num`
+no_geo = no_geo %>%
+  select(-case_num)
+# takes rowname col into actual rownames
+no_geo = column_to_rownames(no_geo)
+# only gives unique addresses and keeps rownames
+no_geo = unique(no_geo)
+# add rowname col back after only getting unique addys
+# rownames basically = obs_num
+no_geo = rownames_to_column(no_geo)
+
+
+
+# MAY NEED FULL JOIN UNSURE
+# geo_bmore = full_join(geo_bmore, problem_rows, by = "obs_num")
+
+
+# I JUST FUCKED MYSELF OVER, wow
+# so I need to run this for unique no_geo because the observation numbers are
+# duplicates when joining in the data set :(
 
 
 # LOAD ORIGINAL BMORE_DEMO -- ONLY RUN TO REJOIN DATASET
@@ -262,7 +333,7 @@ i <- i+1
 # load("data/tidy_data/bmore_demo.rda")
 
 
-# RUN TO SEMI MATCH DATASET
+# RUN TO SEMI MATCH DATASET - do not run unless line 262 ran
 # bmore_demo$full_address = paste0(str_c(bmore_demo$full_address, ", USA"))
 
 
@@ -343,7 +414,7 @@ save(bmore_demo,
 no_geo_unique <- unique(bmore_address$full_address[!bmore_address$full_address%in%geo_bmore$full_address])
 
 # 2
-no_geo <- bmore_address[is.na(match(bmore_address$full_address, geo_bmore$full_address)), ]
+no_geo_case <- bmore_address[is.na(match(bmore_address$full_address, geo_bmore$full_address)), ]
 
 # 3
 anti_join(bmore_address, geo_bmore, by = "full_address")
@@ -486,82 +557,80 @@ raceblack_icons <- colorFactor(c("#050403", "#ffa500"),
 
 # map making --------------------------------------------------------------
 # creates map object
-bmore_map = leaflet() 
-bmore_map = bmore_map %>%
-  addProviderTiles(providers$Stamen.TonerLines,
-                   options = providerTileOptions(opacity = 0.35)) %>%
-  addProviderTiles(providers$Stamen.TonerLabels) %>%
-  addPolygons(data = baltimore_county,
-              group = "County",
-              color = "#1d1030",
-              fill = FALSE) %>%
-  addPolygons(data = baltimore_city,
-              group = "City",
-              color = "#1f004f",
-              fill = FALSE) %>%
-  # data not in readable format ~ looking for different .shp files
-  # addPolygons(data = zipcode_sections,
-  #             group = "City Zip Code",
-  #             color = "#660934",
+# bmore_map = leaflet() 
+# bmore_map = bmore_map %>%
+#   addProviderTiles(providers$Stamen.TonerLines,
+#                    options = providerTileOptions(opacity = 0.35)) %>%
+#   addProviderTiles(providers$Stamen.TonerLabels) %>%
+#   addPolygons(data = baltimore_county,
+#               group = "County",
+#               color = "#1d1030",
+#               fill = FALSE) %>%
+  # addPolygons(data = baltimore_city,
+  #             group = "City",
+  #             color = "#1f004f",
   #             fill = FALSE) %>%
-  addLayersControl(baseGroups = c("County", 
-                                  "City",
-                                  "City Zip Code"),
-                   overlayGroups = c("Black/Non-Black", 
-                                     "Black/White/Other",
-                                     "Female/Male"),
-                   options = layersControlOptions(collapsed = FALSE)) %>%
-  addCircles(data = bmoredemo_markers1,
-             lng = ~lon,
-             lat = ~lat,
-             group = "Black/NonBlack",
-             popup = bmoredemo_markers1$race_black,
-             weight = 3,
-             radius = 40,
-             stroke = TRUE,
-             fillOpacity = 0.8,
-             color = ~raceblack_icons(race_black),
-             label = ~as.character(bmore_raceblack$full_address)) %>%
-  addLegend("bottomright",
-            colors = c("#050403", "#ffa500"),
-            labels = c("Black", "Non-Black"),
-            title = "Cases by Race",
-            group = "Black/NonBlack"
-  ) %>%
-  addCircles(data = bmoredemo_markers1,
-             lng = ~lon,
-             lat = ~lat,
-             group = "Black/White/Other",
-             popup = bmoredemo_markers1$race_cat,
-             weight = 3,
-             radius = 40,
-             stroke = TRUE,
-             fillOpacity = 0.8,
-             color = ~racecat_icons(race_cat),
-             label = ~as.character(bmoredemo_markers1$full_address)) %>%
-  addLegend("bottomright",
-            colors = c("#4c3711", "#c6beaf", "#b58a3d"),
-            labels = c("Black", "White", "Other/Unknown"),
-            title = "Cases by Race Mult",
-            group = "Black/White/Other"
-  ) %>%
-  addCircles(data = bmoredemo_markers1,
-             lng = ~lon,
-             lat = ~lat,
-             group = "Female/Male",
-             popup = bmoredemo_markers1$sex_id,
-             weight = 3,
-             radius = 40,
-             stroke = TRUE,
-             fillOpacity = 0.8,
-             color = ~sex_icons(sex_id),
-             label = ~as.character(bmoredemo_markers1$sex_id)) %>%
-  addLegend("bottomright",
-            colors = c( "#53a097", "#0d2666", "#682140"),
-            labels = c("Male", "Female", "Other/Unknown"),
-            title = "Cases by Sex",
-            group = "Female/Male"
-  )
+# # data not in readable format ~ looking for different .shp files
+# # addPolygons(data = zipcode_sections,
+# #             group = "City Zip Code",
+# #             color = "#660934",
+# #             fill = FALSE) %>%
+  # addLayersControl(baseGroups = c("County", 
+  #                                 "City",
+  #                                 "City Zip Code"),
+  #                  overlayGroups = c("Black/Non-Black", 
+  #                                    "Black/White/Other",
+  #                                    "Female/Male"),
+  #                  options = layersControlOptions(collapsed = FALSE)) %>%
+  # addCircles(data = bmoredemo_markers1,
+  #            lng = ~lon,
+  #            lat = ~lat,
+  #            group = "Black/NonBlack",
+  #            popup = bmoredemo_markers1$race_black,
+  #            weight = 3,
+  #            radius = 40,
+  #            stroke = TRUE,
+  #            fillOpacity = 0.8,
+  #            color = ~raceblack_icons(race_black),
+  #            label = ~as.character(bmore_raceblack$full_address)) %>%
+  # addLegend("bottomright",
+  #           colors = c("#050403", "#ffa500"),
+  #           labels = c("Black", "Non-Black"),
+  #           title = "Cases by Race",
+  #           group = "Black/NonBlack") %>%
+  # addCircles(data = bmoredemo_markers1,
+  #            lng = ~lon,
+  #            lat = ~lat,
+  #            group = "Black/White/Other",
+  #            popup = bmoredemo_markers1$race_cat,
+  #            weight = 3,
+  #            radius = 40,
+  #            stroke = TRUE,
+  #            fillOpacity = 0.8,
+  #            color = ~racecat_icons(race_cat),
+  #            label = ~as.character(bmoredemo_markers1$full_address)) %>%
+  # addLegend("bottomright",
+  #           colors = c("#4c3711", "#c6beaf", "#b58a3d"),
+  #           labels = c("Black", "White", "Other/Unknown"),
+  #           title = "Cases by Race Mult",
+  #           group = "Black/White/Other") %>%
+  # addCircles(data = bmoredemo_markers1,
+  #            lng = ~lon,
+  #            lat = ~lat,
+  #            group = "Female/Male",
+  #            popup = bmoredemo_markers1$sex_id,
+  #            weight = 3,
+  #            radius = 40,
+  #            stroke = TRUE,
+  #            fillOpacity = 0.8,
+  #            color = ~sex_icons(sex_id),
+  #            label = ~as.character(bmoredemo_markers1$sex_id)) %>%
+  # addLegend("bottomright",
+  #           colors = c( "#53a097", "#0d2666", "#682140"),
+  #           labels = c("Male", "Female", "Other/Unknown"),
+  #           title = "Cases by Sex",
+  #           group = "Female/Male"
+  # )
 
 # saves map
 saveWidget(bmore_map,
