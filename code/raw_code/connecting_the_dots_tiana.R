@@ -762,3 +762,29 @@ saveWidget(bmore_map,
 #             labels = c("Male", "Female", "Other/Unknown"),
 #             title = "Cases by Sex",
 #             group = "Female/Male" )
+
+
+
+
+# census data for comparison ----------------------------------------------
+
+# the map looks cool \(^.^)/
+# map <- leaflet(bmore_census) %>% 
+#   addTiles('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', 
+#            attribution='Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>') 
+
+
+bmore_census <- read_csv("data/raw_data/census_pop2010.csv")
+
+# apparently i have to go from .csv to .shp file before I can play around 
+# visual representation of me on the inside -> ( T_T)
+# tutorial ref: https://datacarpentry.org/r-raster-vector-geospatial/10-vector-csv-to-shapefile-in-r/
+
+str(bmore_census)
+
+# $the_geom looks like it contains sp data
+head(bmore_census$the_geom)
+
+# guessing this is considered CRS data. (._. )
+# example had rand(LETTERS) and rand(NUMS) 
+head(bmore_census$NAME)
