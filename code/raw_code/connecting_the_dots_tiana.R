@@ -322,7 +322,6 @@ no_geo = rownames_to_column(no_geo)
 # geo_bmore = full_join(geo_bmore, problem_rows, by = "obs_num")
 
 
-# I JUST FUCKED MYSELF OVER, wow
 # so I need to run this for unique no_geo because the observation numbers are
 # duplicates when joining in the data set :(
 
