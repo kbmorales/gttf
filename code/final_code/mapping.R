@@ -279,6 +279,10 @@ bmoredemo_markers1 <- left_join(bmore_plot1,
 #                                mdcs_demo_dfc,
 #                                by = "case_num")
 
+# have to do some sligt cleaning ~ run when data is new
+# bmoredemo_markers1 = bmoredemo_markers1 %>% select(-full_address.y)
+# colnames(bmoredemo_markers1)[colnames(bmoredemo_markers1) == "full_address.x"] <- "full_address"
+
 # filtering out what I need only for demographic data
 bmoredemo_markers1 = bmoredemo_markers1 %>% 
   dplyr::select(case_num,
@@ -293,6 +297,11 @@ bmoredemo_markers1 = bmoredemo_markers1 %>%
                 case_type_2) %>% 
   group_by(case_num) %>% 
   ungroup()
+
+# there are two incomplete addresses that are throwing the map off. 
+# bmoredemo_markers1 = bmoredemo_markers1 %>% filter(!case_num == "813141002"|!case_num == "1B02228612")
+# bmoredemo_markers1 = bmoredemo_markers1[bmoredemo_markers1$case_num != "1B02228612", ]
+# bmoredemo_markers1 = bmoredemo_markers1[bmoredemo_markers1$case_num != "813141002", ]
 
 # saves into local environment
 save(bmoredemo_markers1, 
@@ -309,8 +318,11 @@ sex_icons <- colorFactor(c("#0d2666", "#53a097", "#682140"),
 racecat_icons <- colorFactor(c("#78840b", "#036852", "#a53208"),
                              domain = unique(bmoredemo_markers1$race_cat))
 # black/nonblack
-raceblack_icons <- colorFactor(c("#050403", "#ffa500"),
+raceblack_icons <- colorFactor(c("#ffa500", "#b7b2ac"),
                                domain = unique(bmoredemo_markers1$race_black))
+# age
+pal <- colorNumeric(palette = diverge_hcl(5, "Berlin"),
+                    domain = bmoredemo_markers1$age_yrs)
 # map making --------------------------------------------------------------
 # REMINDER: every time new variations are made must run empty leaflet line
 # or the map will just be written over and not rerun
@@ -321,20 +333,22 @@ bmore_map = leaflet()
 # adding data
 # examples say to put addLayersControl() at end of map making
 bmore_map = bmore_map %>%
-  addProviderTiles(providers$Stamen.TonerLines,
-                   options = providerTileOptions(opacity = 0.35)) %>%
-  addProviderTiles(providers$Stamen.TonerLabels) %>%
+    addTiles('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+             attribution='Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>') %>%
+  # addProviderTiles(providers$Stamen.TonerLines,
+  #                  options = providerTileOptions(opacity = 0.35)) %>%
+  # addProviderTiles(providers$Stamen.TonerLabels) %>%
   addPolygons(data = baltimore_county,
               group = "County",
-              color = "#1d1030",
+              color = "#b799ff",
               fill = FALSE) %>%
   addPolygons(data = baltimore_city,
               group = "City",
-              color = "#1f004f",
+              color = "#c0a5ff",
               fill = FALSE) %>%
   addPolygons(data = city_county,
               group = "City and County",
-              color = "#400382",
+              color = "#b0aeb2",
               fill = FALSE) %>%
   addCircles(data = bmoredemo_markers1,
              lng = ~lon,
@@ -346,9 +360,9 @@ bmore_map = bmore_map %>%
              stroke = TRUE,
              fillOpacity = 0.8,
              color = ~raceblack_icons(race_black),
-             label = ~as.character(bmore_raceblack$race_black)) %>%
+             label = ~as.character(bmoredemo_markers1$race_black)) %>%
   addLegend("bottomright",
-            colors = c("#050403", "#ffa500"),
+            colors = c("#ffa500", "#b7b2ac"),
             labels = c("Black", "Non-Black"),
             title = "Cases by Race",
             group = "Black/Non-Black") %>%
@@ -362,7 +376,7 @@ bmore_map = bmore_map %>%
              stroke = TRUE,
              fillOpacity = 0.8,
              color = ~racecat_icons(race_cat),
-             label = ~as.character(bmoredemo_markers1$race_cat)) %>%
+             label = ~as.character(bmoredemo_markers1$case_num)) %>%
   addLegend("bottomright",
             colors = c("#78840b", "#036852", "#a53208"),
             labels = c("Black", "Other/Unknown", "White"),
@@ -384,12 +398,28 @@ bmore_map = bmore_map %>%
             labels = c("Male", "Female", "Other/Unknown"),
             title = "Cases by Sex",
             group = "Female/Male") %>%
+  addCircles(data = bmoredemo_markers1,
+             lng = ~lon,
+             lat = ~lat,
+             group = "Age",
+             weight = 2,
+             radius = 25,
+             stroke = TRUE,
+             fillOpacity = 0.5,
+             color = ~pal(age_yrs),
+             label = ~as.character(bmoredemo_markers1$age_yrs)) %>%
+  addLegend("bottomright",
+            pal = pal,
+            values = bmoredemo_markers1$age_yrs,
+            title = "Age",
+            group = "Age")
   addLayersControl(baseGroups = c("County", 
                                   "City",
                                   "City and County"),
                    overlayGroups = c("Black/Non-Black", 
                                      "Black/White/Other",
-                                     "Female/Male"),
+                                     "Female/Male",
+                                     "Age"),
                    options = layersControlOptions(collapsed = FALSE))
   
 
@@ -398,3 +428,14 @@ bmore_map = bmore_map %>%
 # saves map
 saveWidget(bmore_map,
            file = here::here("products/bmore_map.html"))
+
+# possible save output for the map
+# library(shiny)
+# app <- shinyApp(
+#   ui = fluidPage(leafletOutput('myMap')),
+#   server = function(input, output) {
+#     map = leaflet() %>% addTiles() %>% setView(-93.65, 42.0285, zoom = 17)
+#     output$myMap = renderLeaflet(map)
+#   }
+# )
+# if (interactive()) app

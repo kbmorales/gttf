@@ -84,7 +84,7 @@ bmore_demo %>%
 
 # only 4 NAs so still ok to do data set
 bmore_demo = bmore_demo %>%
-  mutate(age_yrs = as.character(round(difftime(Sys.Date(), bmore_demo$defendant_dob, units = "days") / 365)))
+  mutate(age_yrs = as.character(round(difftime(mdcs_demo_dfc$date, bmore_demo$defendant_dob, units = "days") / 365)))                                         
 
 
 # leftjoin with mdcs_cops_df
@@ -92,3 +92,7 @@ bmore_demo = left_join(bmore_demo, mdcs_cops_df, by = "case_num")
 
 bmore_demo = bmore_demo %>%
   filter(defendant_state == "MD")
+
+save(bmore_demo, 
+     file = here::here("data/tidy_data",
+                       "bmore_demo.rda"))

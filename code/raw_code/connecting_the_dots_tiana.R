@@ -14,6 +14,8 @@ library(tmap)
 library(tmaptools)
 # saves map
 library(htmlwidgets)
+library(RColorBrewer)
+library(colorspace)
 
 options(stringAsFactors = FALSE)
 
@@ -761,6 +763,99 @@ saveWidget(bmore_map,
 #             labels = c("Male", "Female", "Other/Unknown"),
 #             title = "Cases by Sex",
 #             group = "Female/Male" )
+
+# there are two dots on curent bmore_map
+# case_num == 1B02228612 & 813141002
+# going to remove from dataset
+
+
+leaflet() %>%
+  addTiles('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+           attribution='Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>') %>%
+  addPolygons(data = city_county,
+              fill = FALSE) %>%
+  addCircles(data = bmoredemo_markers1,
+             lng = ~lon,
+             lat = ~lat,
+             weight = 2,
+             radius = 25,
+             stroke = TRUE,
+             fillOpacity = 0.5,
+             color = ~pal(age_yrs),
+             label = ~as.character(bmoredemo_markers1$age_yrs)) %>%
+addLegend("bottomright",
+          pal = pal,
+          values = bmoredemo_markers1$age_yrs,
+          title = "Age")
+
+# creating generic color palette for age
+ pal <- colorNumeric(palette = diverge_hcl(5, "Berlin"),
+                     domain = bmoredemo_markers1$age_yrs)
+
+ pal(runif(10,60,100))
+ 
+ conpal <- colorNumeric(palette = "Blues", domain = mydf$value, na.color = "black")
+ 
+ 
+# exponential dist, continuously
+# doesn't work
+pal <- previewColors(colorNumeric("Greens", domain = NULL), sort(rexp(16)))
+pal <- di
+
+ # plotting only markers within bounds.  -----------------------------------
+# ref: https://www.nceas.ucsb.edu/scicomp/usecases/point-in-polygon
+
+
+# apparently this is supposed to work
+# let's r know that our markers are in the same reference system as the polygons!
+# I have two 3 separate files, I'm going to link them to `city_county`
+# because it contains entire bounds
+proj4string(as(bmoredemo_markers1, "SpatialPolygons"))<- proj4string(city_county@data)
+
+# does't work ~ don't want to change this
+# Error: Can't find columns `x`, `y` in `.data`.
+# Call `rlang::last_error()` to see a backtrace
+# In addition: Warning messages:
+# 1: Unknown or uninitialised column: 'object'. 
+# 2: Unknown or uninitialised column: 'object'. 
+# 3: Length of logical index must be 1 or 6906, not 0 
+# 4: Unknown or uninitialised column: 'part'. 
+# 5: Unknown or uninitialised column: 'part'. 
+
+# attempt 2
+# over(as(bmoredemo_markers1, "SpatialPolygon"), city_county, fn = NULL)
+# won work because diff type of objects
+
+# attempt 3
+# if(bmoredemo_markers1$lat|bmoredemo_markers1$lon %in% city_county@bbox) {
+#   bmore_map = leaflet() %>%
+#     addTiles('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+#              attribution='Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>') %>%
+#     addPolygons(data = city_county,
+#                 group = "City and County",
+#                 color = "#b0aeb2",
+#                 fill = FALSE) %>%
+#     addCircles(data = bmoredemo_markers1,
+#                lng = ~lon,
+#                lat = ~lat,
+#                group = "Black/Non-Black",
+#                popup = bmoredemo_markers1$race_black,
+#                weight = 3,
+#                radius = 40,
+#                stroke = TRUE,
+#                fillOpacity = 0.8,
+#                color = ~raceblack_icons(race_black),
+#                label = ~as.character(bmore_raceblack$race_black)) %>%
+#     addLegend("bottomright",
+#               colors = c("#050403", "#ffa500"),
+#               labels = c("Black", "Non-Black"),
+#               title = "Cases by Race",
+#               group = "Black/Non-Black") 
+#   
+#   bmore_map
+#     
+# }
+
 
 
 
