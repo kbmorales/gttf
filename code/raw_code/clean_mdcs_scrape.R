@@ -12,7 +12,8 @@ library(httr)
 library(rebus)
 library(dplyr)
 library(readr)
-library(stringr)
+library(tidyr)
+library(readr)
 
 # Load cops db
 load(here::here("data/tidy_data",
@@ -22,22 +23,27 @@ load(here::here("data/tidy_data",
 load(file = here::here("data/raw_data",
                        "mdcs_case_data.rda"))
 
+# Filter for case numbers in mdcs_cops_df (should be district cases)
+mdcs_dist_data <- mdcs_all_data %>% semi_join(mdcs_cops_df)
+
+# Filter for circuit court case numbers in mdcs_circ_cops_df
+mdcs_circ_data <- mdcs_all_data %>% semi_join(mdcs_circ_cops_df) %>%
+  rename(circ_case_num = case_num)
+
+
 # MDCS Demographic Data -----------------------------------------------
 
-
-# Filter for case numbers in mdcs_cops_df
-mdcs_all_data <- mdcs_all_data %>% semi_join(mdcs_cops_df)
 
 # Create demo dataset
 mdcs_demo_df <- c()
 
-for(i in 1:length(unique(mdcs_all_data$case_num))) {
+for(i in 1:length(unique(mdcs_dist_data$case_num))) {
   # Break down if circuit or district court:
   mdcs_demo_row <- 
     # If a District Court Case
-    # if(str_detect(mdcs_cops_df[mdcs_cops_df$case_num == unique(mdcs_all_data$case_num)[i], 5], "District")) {
-      mdcs_all_data %>%
-        filter(case_num == unique(mdcs_all_data$case_num)[i]) %>%
+    # if(str_detect(mdcs_cops_df[mdcs_cops_df$case_num == unique(mdcs_dist_data$case_num)[i], 5], "District")) {
+      mdcs_dist_data %>%
+        filter(case_num == unique(mdcs_dist_data$case_num)[i]) %>%
         mutate(court_system = str_replace_all(trimws(all_dat[str_which(all_dat, "Court System:")+1]
                                                      ),
                                               "\\s*-?\n\\s+|\\s{2}", " "),
@@ -86,8 +92,8 @@ for(i in 1:length(unique(mdcs_all_data$case_num))) {
     # NO LONGER NEED CIRCUIT COURT CASES
     # } else {
     #   # For Circuit court cases
-    #   mdcs_all_data %>%
-    #     filter(case_num == unique(mdcs_all_data$case_num)[i]) %>%
+    #   mdcs_dist_data %>%
+    #     filter(case_num == unique(mdcs_dist_data$case_num)[i]) %>%
     #     mutate(court_system = str_replace_all(trimws(all_dat[str_which(all_dat, "Court System:")+1]
     #     ),
     #     "\\s*-?\n\\s+|\\s{2}", " "),
@@ -185,16 +191,16 @@ save(mdcs_df,
 # Create charges dataset
 mdcs_charges_df <- c()
 
-for(i in 1:length(unique(mdcs_all_data$case_num))) {
-   case <- mdcs_all_data %>% 
-     filter(case_num == unique(mdcs_all_data$case_num)[i])
+for(i in 1:length(unique(mdcs_dist_data$case_num))) {
+   case <- mdcs_dist_data %>% 
+     filter(case_num == unique(mdcs_dist_data$case_num)[i])
    # If a District Court Case
    rows <- sum(str_detect(case$all_dat, "Charge No:")) 
    case_charge <-
-     # if(str_detect(mdcs_cops_df[mdcs_cops_df$case_num == unique(mdcs_all_data$case_num)[i], 5], "District")) 
+     # if(str_detect(mdcs_cops_df[mdcs_cops_df$case_num == unique(mdcs_dist_data$case_num)[i], 5], "District")) 
      # {
      tibble(
-         case_num = unique(mdcs_all_data$case_num)[i],
+         case_num = unique(mdcs_dist_data$case_num)[i],
          case_court = "District",
          charge_num = case[str_which(case$all_dat, "Charge No:") +1, 2],
          charge_desc = case[str_which(case$all_dat, "Charge No:") +3, 2],
@@ -231,10 +237,8 @@ for(i in 1:length(unique(mdcs_all_data$case_num))) {
            c(as.numeric(
            str_remove(case[str_which(case$all_dat, "Fine:") +1, 2][c(TRUE, FALSE)], "\\$")
            ),
-         rep(NA, rows - sum(str_detect(case$all_dat, "Fine:")[c(TRUE, FALSE)]
-                            )
-             )
-         )
+           rep(NA, rows - sum(str_detect(case$all_dat, "Fine:")[c(TRUE, FALSE)]))
+           )
            } else {
              NA
            },
@@ -243,10 +247,8 @@ for(i in 1:length(unique(mdcs_all_data$case_num))) {
            c(as.numeric(
            str_remove(case[str_which(case$all_dat, "Court Costs:") +1, 2][c(TRUE, FALSE)], "\\$")
            ),
-         rep(NA, rows - sum(str_detect(case$all_dat, "Court Costs:")[c(TRUE, FALSE)]
-                            )
-             )
-         )
+           rep(NA, rows - sum(str_detect(case$all_dat, "Court Costs:")[c(TRUE, FALSE)]))
+           )
            } else {
              NA
            },
@@ -256,10 +258,8 @@ for(i in 1:length(unique(mdcs_all_data$case_num))) {
            str_remove(
              case[str_which(case$all_dat, "CICF:") +1, 2][c(TRUE, FALSE)]
              , "\\$")
-         ),
-         rep(NA, rows - sum(str_detect(case$all_dat, "CICF:")[c(TRUE, FALSE)]
-                            )
-             )
+           ),
+           rep(NA, rows - sum(str_detect(case$all_dat, "CICF:")[c(TRUE, FALSE)]))
          )
            } else {
              NA
@@ -323,10 +323,9 @@ for(i in 1:length(unique(mdcs_all_data$case_num))) {
            ),
          charge_jailtime = if("Jail Term:" %in% case$all_dat)
            {
-           c(as.numeric(
-           case[str_which(case$all_dat, "Yrs:") +1, 2][c(TRUE, FALSE)]) + 
-             as.numeric(case[str_which(case$all_dat, "Mos:") +1, 2][c(TRUE, FALSE)])/12 +
-             as.numeric(case[str_which(case$all_dat, "Days:") +1, 2][c(TRUE, FALSE)])/365,
+           c(as.numeric(replace_na(case[str_which(case$all_dat, "Yrs:") +1, 2][c(TRUE, FALSE)], 0)) + 
+             as.numeric(replace_na(case[str_which(case$all_dat, "Mos:") +1, 2][c(TRUE, FALSE)], 0))/12 +
+             as.numeric(replace_na(case[str_which(case$all_dat, "Days:") +1, 2][c(TRUE, FALSE)], 0))/365,
            rep(NA, rows - sum(str_detect(case$all_dat, "Jail Term:")
                               )
                )
@@ -336,10 +335,9 @@ for(i in 1:length(unique(mdcs_all_data$case_num))) {
            },
          charge_susp_jailtime = if("Suspended Term:" %in% case$all_dat)
            {
-           c(as.numeric(
-           case[str_which(case$all_dat, "Yrs:") +1, 2][c(FALSE, TRUE)]) + 
-             as.numeric(case[str_which(case$all_dat, "Mos:") +1, 2][c(FALSE, TRUE)])/12 +
-             as.numeric(case[str_which(case$all_dat, "Days:") +1, 2][c(FALSE, TRUE)])/365,
+           c(as.numeric(replace_na(case[str_which(case$all_dat, "Yrs:") +1, 2][c(FALSE, TRUE)], 0)) + 
+             as.numeric(replace_na(case[str_which(case$all_dat, "Mos:") +1, 2][c(FALSE, TRUE)], 0))/12 +
+             as.numeric(replace_na(case[str_which(case$all_dat, "Days:") +1, 2][c(FALSE, TRUE)], 0))/365,
            rep(NA, rows - sum(str_detect(case$all_dat, "Suspended Term:")
                               )
                )
@@ -358,7 +356,7 @@ for(i in 1:length(unique(mdcs_all_data$case_num))) {
    # else { 
    #   # For Circuit court cases
    #   case_charge <- tibble(
-   #     case_num = unique(mdcs_all_data$case_num)[i],
+   #     case_num = unique(mdcs_dist_data$case_num)[i],
    #     case_court = "Circuit",
    #     charge_num = case[str_which(case$all_dat, "Charge No:") +1, 2],
    #     charge_desc = case[str_which(case$all_dat, "Description:") +1, 2],
@@ -399,13 +397,70 @@ save(mdcs_charges_df,
 )
 
 
+# MDCS Charges for Circuit ------------------------------------------------
+
+
+# Find court case connections between district and circuit court cases
+connect_cases <- mdcs_dist_data[str_detect(mdcs_dist_data$all_dat, 
+                                           "CIRCUIT COURT CASE"),]
+connect_cases <- connect_cases %>% 
+  mutate(circ_case_num = str_extract(connect_cases$all_dat, 
+                                     "\\d+[/,-]*\\d*")) %>%
+  select(-all_dat) %>%
+  rename(dist_case_num = case_num) %>%
+  filter(!is.na(circ_case_num))
+
+# Split into two--1:1 connections vs. 1:2+ connections
+mult_connect_cases <- connect_cases %>%
+  filter(str_detect(connect_cases$circ_case_num, "\\d+[/,-]\\d*"))
+
+single_connect_cases <- connect_cases %>%
+  filter(!str_detect(connect_cases$circ_case_num, "\\d+[/,-]\\d*"))
+
+# export multi-connect cases for manual workup
+write_csv(mult_connect_cases,
+          path = here::here("data/raw_data",
+                            "mult_connect_cases.csv"))
+
+# I manually added rows for multiple cases, and did some sporadic confirmation
+# on MDCS to see when things didn't add up
+
+# Overwrite mult_connect_cases
+mult_connect_cases <- read_csv(here::here("data/raw_data",
+                    "mult_connect_cases_2.csv"),
+                    col_types = "cc")
+
+# Combine mult and single connect cases together again
+connect_cases <- bind_rows(single_connect_cases, mult_connect_cases) %>%
+  arrange(dist_case_num)
+
+nrow(connect_cases %>% anti_join(mdcs_circ_cops_df, 
+                            by = c("circ_case_num" = "case_num"))
+)
+
+# 216 rows don't match between the originally scraped circuit court dataset 
+# and the new connects.
+# May need to scrape additional cases, but for now proceeding
+
+mdcs_circ_data_filt <- mdcs_circ_data %>% semi_join(connect_cases)
+
+case <- mdcs_circ_data_filt %>% 
+  filter(circ_case_num == "211307017")
+
+sum(
+  as.numeric(
+    mdcs_circ_data_filt$all_dat[str_which(mdcs_circ_data_filt$all_dat, "Yrs:") + 1]),
+  na.rm = TRUE)
+# 7749 years total so far
 
 # MDCS Charges Workup -----------------------------------------------------
 
 
 # Check out charges
-View(mdcs_charges_df %>% group_by(charge_statute) %>% count(charge_desc) %>% arrange(desc(n)))
-
+View(mdcs_charges_df %>% 
+       group_by(charge_statute) %>%
+       count(charge_desc) %>% 
+       arrange(desc(n)))
 
 # New assignment for charges
 mdcs_charges_df <- mdcs_charges_df %>%
@@ -419,7 +474,8 @@ mdcs_charges_df <- mdcs_charges_df %>%
         str_detect(charge_desc, "POSSESS-NOT") ~ "Non-Marijuana Possession",
       str_detect(charge_statute, "CR.5.602") | 
         str_detect(charge_desc, "DIST") |
-        str_detect(charge_desc, "NARC POSS W/INTENT") ~ "CDS Distribituion / Manufacture",
+        str_detect(charge_desc, "NARC POSS W/INTENT") ~ 
+        "CDS Distribituion / Manufacture",
       str_detect(charge_desc, "PARA") ~ "CDS Paraphernalia Possession",
       str_detect(charge_desc, "FIREARM|RFL|RIFLE|GUN|AMMO") ~ "Firearms-related",
       str_detect(charge_desc, "ASSAULT") ~ "Assault",
@@ -430,7 +486,6 @@ mdcs_charges_df <- mdcs_charges_df %>%
       TRUE ~ "Other"
     )
   ) 
-
 
 
 # Network dataset ---------------------------------------------------------
@@ -455,7 +510,6 @@ for(i in 1:length(unique(mdcs_all_data$case_num))) {
     )
   mdcs_network_df <- bind_rows(mdcs_network_df, case_network)
 }
-
 
 
 # Network Workup ----------------------------------------------------------
