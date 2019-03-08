@@ -361,9 +361,8 @@ bmore_map = bmore_map %>%
              stroke = TRUE,
              fillOpacity = 0.8,
              color = "#ff0000",
-             label = ~as.character(bmoredemo_markers1$case_num)
-             options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)
-             ) %>%
+             label = ~as.character(bmoredemo_markers1$case_num),
+             options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)) %>%
   addCircles(data = bmoredemo_markers1,
              lng = ~lon,
              lat = ~lat,
@@ -374,9 +373,8 @@ bmore_map = bmore_map %>%
              stroke = TRUE,
              fillOpacity = 0.8,
              color = ~raceblack_icons(race_black),
-             label = ~as.character(bmoredemo_markers1$race_black)
-             options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)
-             ) %>%
+             label = ~as.character(bmoredemo_markers1$race_black),
+             options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)) %>%
   addLegend("bottomright",
             colors = c("#ffa500", "#b7b2ac"),
             labels = c("Black", "Non-Black"),
@@ -392,9 +390,8 @@ bmore_map = bmore_map %>%
              stroke = TRUE,
              fillOpacity = 0.8,
              color = ~racecat_icons(race_cat),
-             label = ~as.character(bmoredemo_markers1$case_num)
-             options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)
-             ) %>%
+             label = ~as.character(bmoredemo_markers1$case_num),
+             options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)) %>%
   addLegend("bottomright",
             colors = c("#78840b", "#036852", "#a53208"),
             labels = c("Black", "Other/Unknown", "White"),
@@ -411,9 +408,8 @@ bmore_map = bmore_map %>%
              stroke = TRUE,
              fillOpacity = 0.8,
              color = ~sex_icons(sex_id),
-             label = ~as.character(bmoredemo_markers1$sex_id)
-             options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)
-             ) %>%
+             label = ~as.character(bmoredemo_markers1$sex_id),
+             options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)) %>%
   addLegend("bottomright",
             colors = c( "#53a097", "#0d2666", "#682140"),
             labels = c("Male", "Female", "Other/Unknown"),
@@ -429,9 +425,8 @@ bmore_map = bmore_map %>%
              stroke = TRUE,
              fillOpacity = 0.5,
              color = ~pal(age_yrs),
-             label = ~as.character(bmoredemo_markers1$age_yrs)
-             options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)
-             ) %>%
+             label = ~as.character(bmoredemo_markers1$age_yrs),
+             options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)) %>%
   addLegend("bottomright",
             pal = pal,
             values = bmoredemo_markers1$age_yrs,
@@ -452,7 +447,7 @@ bmore_map = bmore_map %>%
 # saves map
 htmlwidgets::saveWidget(bmore_map,
            file = here::here("products/bmore_map_final.html"),
-           selfcontained = FALSE)
+           selfcontained = TRUE)
 
 webshot("products/bmore_map.html",
         file = here::here("products/bmore_map.png",

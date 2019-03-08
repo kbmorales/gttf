@@ -5,7 +5,7 @@ library(rgdal)
 
 load("bmore_markers.rda")
 
-county_sections <- readOGR("geo_export_mdc.shp")
+county_sections <- readOGR("data/raw_data/md_counties/geo_export_mdc.shp")
 
 baltimore_county <- subset(county_sections, geodesc == "Baltimore County")
 
