@@ -352,41 +352,6 @@ for(i in 1:length(unique(mdcs_dist_data$case_num))) {
                  )
              )
          )
-   #     } 
-   # else { 
-   #   # For Circuit court cases
-   #   case_charge <- tibble(
-   #     case_num = unique(mdcs_dist_data$case_num)[i],
-   #     case_court = "Circuit",
-   #     charge_num = case[str_which(case$all_dat, "Charge No:") +1, 2],
-   #     charge_desc = case[str_which(case$all_dat, "Description:") +1, 2],
-   #     charge_statute = NA,
-   #     charge_amend_date = NA,
-   #     charge_cjis_code = if("CJIS" %in% case$all_dat){
-   #       case[str_which(case$all_dat, "CJIS/Traffic Code:") +1, 2]
-   #       }
-   #     else {
-   #       NA
-   #     },
-   #     charge_mo_pll = NA,
-   #     charge_prob_cause = NA,
-   #     charge_inc_date_from = NA,
-   #     charge_inc_date_to = NA,
-   #     charge_victim_age = NA,
-   #     charge_disposition = if("Disposition:" %in% case$all_dat){
-   #       case[str_which(case$all_dat, "Disposition:") +1, 2]
-   #     } else {
-   #         NA
-   #       },
-   #     charge_disp_date = if("Disposition Date:" %in% case$all_dat){
-   #       as.Date(case[str_which(case$all_dat, "Disposition Date:") +1, 2],
-   #               format = "%m/%d/%Y"
-   #               )
-   #       } else {
-   #         NA
-   #         }
-   #   )
-   # }
    mdcs_charges_df <- bind_rows(mdcs_charges_df, case_charge)
 }
 
@@ -444,17 +409,135 @@ nrow(connect_cases %>% anti_join(mdcs_circ_cops_df,
 
 mdcs_circ_data_filt <- mdcs_circ_data %>% semi_join(connect_cases)
 
-case <- mdcs_circ_data_filt %>% 
-  filter(circ_case_num == "211307017")
-
 sum(
   as.numeric(
     mdcs_circ_data_filt$all_dat[str_which(mdcs_circ_data_filt$all_dat, "Yrs:") + 1]),
   na.rm = TRUE)
 # 7749 years total so far
 
+
+# MDCS Circuit Case Charges -----------------------------------------------
+
+
+# Testing
+case <- mdcs_circ_data_filt %>% 
+  filter(circ_case_num == unique(mdcs_circ_data_filt$circ_case_num)[i])
+
+mdcs_circ_charges_df <- c()
+
+for(i in 1:length(unique(mdcs_circ_data_filt$circ_case_num))) {
+  case <- mdcs_circ_data_filt %>% 
+    filter(circ_case_num == unique(mdcs_circ_data_filt$circ_case_num)[i])
+  rows <- sum(str_detect(case$all_dat, "Charge No:")) 
+  case_charge <-
+    tibble(
+    # For Circuit court cases
+      case_num = unique(mdcs_dist_data$case_num)[i],
+      case_court = "Circuit",
+      charge_num = case[str_which(case$all_dat, "Charge No:") +1, 2],
+      charge_desc = case[str_which(case$all_dat, "Description:") +1, 2],
+      charge_statute = NA,
+      # Taking Filing Date as Amend Date for Circuit Court cases
+      charge_amend_date = case[str_which(case$all_dat, "Filing Date:") +1, 2],
+      charge_cjis_code = if("CJIS" %in% case$all_dat)
+        {case[str_which(case$all_dat, "CJIS/Traffic Code:") +1, 2]}
+      else 
+        {NA},
+      charge_mo_pll = NA,
+      charge_prob_cause = NA,
+      # Taking Incident Date as Incident Date From for CC cases
+      charge_inc_date_from = if("Incident Date:" %in% case$all_dat)
+        {as.Date(case[str_which(case$all_dat, "Incident Date:") +1, 2],
+                format = "%m/%d/%Y")}
+      else
+        {NA},
+      charge_inc_date_to = NA,
+      charge_victim_age = NA,
+      charge_plea = c(
+        case[str_which(case$all_dat, "Plea:") +1, 2],
+        rep(NA, rows - sum(str_detect(case$all_dat, "Plea:")
+                           )
+            )
+        ),
+      # Ignoring Plea Date for now
+      charge_disposition = c(
+        case[str_which(case$all_dat, "^Disposition:") +1, 2],
+        rep(NA, rows - sum(str_detect(case$all_dat, "^Disposition:")
+                           )
+            )
+        ),
+      charge_disp_date = c(
+        as.Date(case[str_which(case$all_dat, "Disposition Date:") +1, 2],
+                format = "%m/%d/%Y"),
+        rep(NA, rows - sum(str_detect(case$all_dat, "Disposition Date")
+                           )
+            )
+        ),
+      charge_fine = NA,
+      charge_court_costs = NA,
+      charge_cicf = NA,
+      charge_susp_fine = NA,
+      charge_susp_court_costs = NA,
+      charge_susp_cicf = NA,
+      charge_pbj_end_date = NA,
+      charge_prob_end_date = NA,
+      charge_rest_amt = NA,
+      charge_jailtime = if("Sentence Time:" %in% case$all_dat)
+      {c(
+        as.numeric(replace_na(
+          case[str_which(case$all_dat, "Sentence Time:") +2, 2], 0)) + 
+          as.numeric(replace_na(
+            case[str_which(case$all_dat, "Sentence Time:") +4, 2], 0))/12 +
+          as.numeric(replace_na(
+            case[str_which(case$all_dat, "Sentence Time:") +6, 2], 0))/365,
+        rep(NA, rows - sum(str_detect(case$all_dat, "Sentence Time:")
+                           )
+            )
+        )} 
+      else 
+        {NA},
+      charge_susp_jailtime = if("Suspended Time:" %in% case$all_dat)
+      {c(
+        as.numeric(replace_na(
+          case[str_which(case$all_dat, "Suspended Time:") +2, 2], 0)) + 
+          as.numeric(replace_na(
+            case[str_which(case$all_dat, "Suspended Time:") +4, 2], 0))/12 +
+          as.numeric(replace_na(
+            case[str_which(case$all_dat, "Suspended Time:") +6, 2], 0))/365,
+        rep(NA, rows - sum(str_detect(case$all_dat, "Suspended Time:")
+        )
+        )
+      )} 
+      else 
+      {NA},
+      charge_credit_timeserved = NA,
+      charge_prob_time = if("Probation Time:" %in% case$all_dat)
+      {c(
+        as.numeric(replace_na(
+          case[str_which(case$all_dat, "Probation Time:") +2, 2], 0)) + 
+          as.numeric(replace_na(
+            case[str_which(case$all_dat, "Probation Time:") +4, 2], 0))/12 +
+          as.numeric(replace_na(
+            case[str_which(case$all_dat, "Probation Time:") +6, 2], 0))/365,
+        rep(NA, rows - sum(str_detect(case$all_dat, "Probation Time:")
+                           )
+            )
+      )} 
+      else 
+      {NA}
+    )
+  mdcs_circ_charges_df <- bind_rows(mdcs_circ_charges_df, case_charge)
+}
+
+
 # MDCS Charges Workup -----------------------------------------------------
 
+
+# Add probation time to district court data
+mdcs_charges_df <- mdcs_charges_df %>% mutate(charge_prob_time = NA)
+
+# Combine MDCS district and circuit charges into same dataset
+mdcs_charges_df <- bind_rows(mdcs_charges_df, mdcs_circ_charges_df)
 
 # Check out charges
 View(mdcs_charges_df %>% 
@@ -468,24 +551,45 @@ mdcs_charges_df <- mdcs_charges_df %>%
     charge_desc_2 = case_when(
       charge_statute == "CR.5.601.(a)(1)" & 
         !str_detect(charge_desc, "NOT") | 
-        str_detect(charge_desc, "POSSESSION - MARI") ~ "Marijuana Possession",
+        str_detect(charge_desc, "POSSESSION - MARI") |
+        str_detect(charge_desc, "CDS: POSS[-\\s]MARI[HJ]UANA") |
+        str_detect(charge_desc, "CON-CDS:POSS-MARIHUANA") ~ 
+        "Marijuana Possession",
       charge_statute == "CR.5.601.(a)(1)" & 
         str_detect(charge_desc, "NOT|POSSESS-NOT") |
-        str_detect(charge_desc, "POSSESS-NOT") ~ "Non-Marijuana Possession",
+        str_detect(charge_desc, "POSSESS-NOT") |
+        str_detect(charge_desc, "CDS-UNLAWFUL POSSESSION ETC") |
+        str_detect(charge_desc, "CDS POSSESSION-CON") |
+        str_detect(charge_desc, "CDS:POSSESSION") |
+        str_detect(charge_desc, "CDS POSSESS - LG AMT") ~ 
+        "Non-Marijuana Possession",
       str_detect(charge_statute, "CR.5.602") | 
         str_detect(charge_desc, "DIST") |
-        str_detect(charge_desc, "NARC POSS W/INTENT") ~ 
+        str_detect(charge_desc, "NARC POSS W/") |
+        str_detect(charge_desc, "CDS[-\\s]POSS W/I") |
+        str_detect(charge_desc, "CDS-POSS WI MANUF/DIS/DISP-NARC-CON")	~ 
         "CDS Distribituion / Manufacture",
       str_detect(charge_desc, "PARA") ~ "CDS Paraphernalia Possession",
-      str_detect(charge_desc, "FIREARM|RFL|RIFLE|GUN|AMMO") ~ "Firearms-related",
-      str_detect(charge_desc, "ASSAULT") ~ "Assault",
+      str_detect(charge_desc, "FIREARM|RFL|PISTOL|RIFLE|GUN|AMMO") ~ 
+        "Firearms-related",
+      str_detect(charge_desc, "ASSAULT") |
+        str_detect(charge_desc, "DANGEROUS WEAPON-INT/INJURE") ~
+        "Assault",
       str_detect(charge_desc, "ARREST") ~ "Resisting Arrest",
       str_detect(charge_desc, "TRESPASS") ~ "Trespassing",
-      str_detect(charge_desc, "THEFT|ROBB|BURG") ~ "Theft / Burglary / Robbery",
+      str_detect(charge_desc, "THEFT|ROBB|BURG|	CARJACKING") ~ 
+        "Theft / Burglary / Robbery",
       str_detect(charge_desc, "DISORDERLY CONDUCT") ~ "Disorderly Conduct",
+      str_detect(charge_desc, "VIOLATION OF PROB") ~ "Probation Violation",
       TRUE ~ "Other"
     )
   ) 
+
+# Check out charges again
+View(mdcs_charges_df %>% 
+       group_by(charge_desc_2) %>%
+       count(charge_desc) %>% 
+       arrange(desc(n)))
 
 
 # Network dataset ---------------------------------------------------------
