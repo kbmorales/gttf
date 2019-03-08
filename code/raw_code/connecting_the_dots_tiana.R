@@ -868,17 +868,177 @@ proj4string(as(bmoredemo_markers1, "SpatialPolygons"))<- proj4string(city_county
 #            attribution='Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>') 
 
 
-bmore_census <- read_csv("data/raw_data/census_pop2010.csv")
+# bmore_census <- read_csv("data/raw_data/census_pop2010.csv")
+# 
+# # apparently i have to go from .csv to .shp file before I can play around 
+# # visual representation of me on the inside -> ( T_T)
+# # tutorial ref: https://datacarpentry.org/r-raster-vector-geospatial/10-vector-csv-to-shapefile-in-r/
+# 
+# str(bmore_census)
+# 
+# # $the_geom looks like it contains sp data
+# head(bmore_census$the_geom)
+# 
+# # guessing this is considered CRS data. (._. )
+# # example had rand(LETTERS) and rand(NUMS) 
+# head(bmore_census$NAME)
 
-# apparently i have to go from .csv to .shp file before I can play around 
-# visual representation of me on the inside -> ( T_T)
-# tutorial ref: https://datacarpentry.org/r-raster-vector-geospatial/10-vector-csv-to-shapefile-in-r/
 
+
+# not using above file anymore
+# using new method - US Census Data 
+# api given by US CENSUS BUREAU API TEAM
+# check email for reference. 
+library(tidycensus)
+library(tidyverse)
+
+# this only gave population numbers but only for the counties
+test <- load_variables(2015, "acs5", cache = TRUE)
+glimpse(test)
+
+# LOAD THIS DATA SET FIRST BEFORE GETTING CENSUS DATA
+
+# over 1,044 distinct observations
+test %>%
+  select(concept) %>%
+  group_by(concept) %>%
+  summarise(concepts = n_distinct(concept)) %>%
+  arrange(desc(concepts)) %>%
+  collect()
+
+# over 10,234 distinct observations
+test %>%
+  select(label) %>%
+  group_by(label) %>%
+  summarise(labels = n_distinct(label)) %>%
+  arrange(desc(labels)) %>%
+  collect()
+
+# THESE REFERENCE VARIABLES TO USE FOR BELOW get_acs() CALL
+# over 22,767 distinct observations
+test %>%
+  select(name) %>%
+  group_by(name) %>%
+  summarise(names = n_distinct(name)) %>%
+  arrange(desc(names)) %>%
+  collect()
+
+# lets start with theses first
+# names == C02003_013 ~ white and black pop est total
+# names == C02003_018 ~ three races pop est total
+# names == B01001_001 ~ sex pop est total (ALL AGES/RACES)
+
+# set api in local environment under .Renviron file
+options(tigris_use_cache = TRUE)
+
+# lets see if we can pull all data 
+bmore_census <- get_acs(geography = "county",
+                        state = "MD",
+                        variables = c("C02003_013",
+                                      "C02003_018",
+                                      "B01001_001"),
+                        geometry = TRUE)
+# SUCCESS!
+head(bmore_census)
+colnames(bmore_census)
 str(bmore_census)
+glimpse(bmore_census)
 
-# $the_geom looks like it contains sp data
-head(bmore_census$the_geom)
+# create color palette
+census_pal <- colorNumeric(palette = diverge_hcl(5, "Berlin"),
+                           domain = bmore_census$estimate)
 
-# guessing this is considered CRS data. (._. )
-# example had rand(LETTERS) and rand(NUMS) 
-head(bmore_census$NAME)
+# testing diff versions
+census_pal <- colorQuantile(palette = diverge_hcl(5, "Berlin"),
+                           domain = bmore_census$estimate,
+                           n = 10)
+
+
+# apparently the epsg codes listed online are out of date?
+# code below was acquired at official website: http://www.epsg-registry.org/
+# creating list of epsg codes to find MD
+# library(rgdal)
+epsg_codes <- make_EPSG()
+glimpse(epsg_codes)
+
+# lets see if we can find MD epsg proj4string and see if the proj4string
+# works instead
+head(epsg_codes[grep("Maryland", epsg_codes$note), 1:2], 20) # trying to capture all ~ only 9
+#       code                                note    Y/N
+# 717   2248           # NAD83 / Maryland (ftUS)    
+# 1272  2804            # NAD83(HARN) / Maryland    
+# 1361  2893     # NAD83(HARN) / Maryland (ftUS)    
+# 2026  3559        # NAD83(NSRS2007) / Maryland    
+# 2049  3582 # NAD83(NSRS2007) / Maryland (ftUS)    
+# 3124  6487            # NAD83(2011) / Maryland    
+# 3125  6488     # NAD83(2011) / Maryland (ftUS)    
+# 3769 26785                  # NAD27 / Maryland    
+# 3922 26985                  # NAD83 / Maryland    
+
+
+# lets only pull these rows starting with the first
+epsg_codes %>%
+  slice(717) %>%
+  pull(3)
+
+# "+proj=lcc +lat_1=39.45 +lat_2=38.3 +lat_0=37.66666666666666 +lon_0=-77 +x_0=399999.9998983998 +y_0=0 +datum=NAD83 +units=us-ft +no_defs"
+
+# let's see if this data actually maps ~ White/Black
+bmore_census %>%
+  filter(variable == "C02003_013") %>%
+  # st_transform(bmore_census$geometry, crs = "+init=epsg:2804") %>%
+  leaflet(width = "100%") %>%
+  addTiles('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+             attribution='Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>') %>%
+  addPolygons(popup = str_extract(bmore_census$NAME, "Baltimore"),
+              stroke = FALSE,
+              smoothFactor = 0,
+              fillOpacity = 0.7,
+              color = ~census_pal(bmore_census$estimate)) %>%
+  addLegend("bottomright",
+            pal = ~census_pal,
+            values = ~bmore_census$estimate,
+            title = "Population By Race ~ White/Black",
+            opacity = 1)
+
+# start map legend --------------------------------------------------------
+
+bmore_map = leaflet()
+
+bmore_map %>%
+  addTiles('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+           attribution = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>. *Displayed cases are 80% of total data set aggregated. Cases are over a period of ~10yrs.') %>%
+  fitBounds(-76.89493, 39.19533, -76.32139, 39.72115) %>%
+  # addProviderTiles(providers$Stamen.TonerLines,
+  #                  options = providerTileOptions(opacity = 0.35)) %>%
+  # addProviderTiles(providers$Stamen.TonerLabels) %>%
+  addPolygons(data = baltimore_county,
+              group = "County",
+              color = "#b799ff",
+              fill = FALSE) %>%
+  addPolygons(data = baltimore_city,
+              group = "City",
+              color = "#c0a5ff",
+              fill = FALSE) %>%
+  addCircles(data = bmoredemo_markers1,
+             lng = ~lon,
+             lat = ~lat,
+             group = "Black/Non-Black",
+             popup = bmoredemo_markers1$race_black,
+             weight = 3,
+             radius = 40,
+             stroke = TRUE,
+             fillOpacity = 0.8,
+             color = ~raceblack_icons(race_black),
+             label = ~as.character(bmoredemo_markers1$race_black),
+             options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)) %>%
+  addLegend("bottomright",
+            colors = c("#ffa500", "#b7b2ac"),
+            labels = c("Black", "Non-Black"),
+            title = "Cases by Race",
+            group = "Black/Non-Black") %>%
+  addLayersControl(overlayGroups = c("City",
+                                     "County"),
+                   baseGroups = c("Points",
+                                  "Black/Non-Black"),
+                   options = layersControlOptions(collapsed = TRUE, autoZIndex = TRUE))
