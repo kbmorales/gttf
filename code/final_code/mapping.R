@@ -283,6 +283,12 @@ bmoredemo_markers1 <- left_join(bmore_plot1,
 # bmoredemo_markers1 = bmoredemo_markers1 %>% select(-full_address.y)
 # colnames(bmoredemo_markers1)[colnames(bmoredemo_markers1) == "full_address.x"] <- "full_address"
 
+
+# this adds the charges data to the dataset
+bmoredemo_markers1 <- left_join(mdcs_charges_df,
+                                bmoredemo_markers1,
+                                by = "case_num")
+
 # filtering out what I need only for demographic data
 bmoredemo_markers1 = bmoredemo_markers1 %>% 
   dplyr::select(case_num,
@@ -294,7 +300,8 @@ bmoredemo_markers1 = bmoredemo_markers1 %>%
                 age_yrs,
                 sex_id,
                 case_type,
-                case_type_2) %>% 
+                case_type_2,
+                ) %>% 
   group_by(case_num) %>% 
   ungroup()
 
@@ -361,7 +368,8 @@ bmore_map = bmore_map %>%
              stroke = TRUE,
              fillOpacity = 0.8,
              color = "#ff0000",
-             label = ~as.character(bmoredemo_markers1$case_num),
+             label = ~ c(as.character(bmoredemo_markers1$case_num),
+                         as.character(bmoredemo_markers1$charge_desc)),
              options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)) %>%
   addCircles(data = bmoredemo_markers1,
              lng = ~lon,
@@ -410,7 +418,7 @@ bmore_map = bmore_map %>%
              color = ~sex_icons(sex_id),
              label = ~as.character(bmoredemo_markers1$sex_id),
              options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)) %>%
-  addLegend("bottomright",
+  addLegend("bottomleft",
             colors = c( "#53a097", "#0d2666", "#682140"),
             labels = c("Male", "Female", "Other/Unknown"),
             title = "Cases by Sex",
@@ -427,7 +435,7 @@ bmore_map = bmore_map %>%
              color = ~pal(age_yrs),
              label = ~as.character(bmoredemo_markers1$age_yrs),
              options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)) %>%
-  addLegend("bottomright",
+  addLegend("bottomleft",
             pal = pal,
             values = bmoredemo_markers1$age_yrs,
             title = "Age",
@@ -446,7 +454,7 @@ bmore_map = bmore_map %>%
 
 # saves map
 htmlwidgets::saveWidget(bmore_map,
-           file = here::here("products/bmore_map_final.html"),
+           file = here::here("products/bmore_map.html"),
            selfcontained = TRUE)
 
 webshot("products/bmore_map.html",
@@ -458,40 +466,40 @@ webshot("products/bmore_map.html",
 mapshot(bmore_map, url = paste0(getwd(), "/bmore_map.html"))
 
 
-# possible save output for the map
-# library(shiny)
-# app <- shinyApp(
-#   ui = fluidPage(leafletOutput('myMap')),
-#   server = function(input, output) {
-#     map = leaflet() %>% addTiles() %>% setView(-93.65, 42.0285, zoom = 17)
-#     output$myMap = renderLeaflet(map)
-#   }
-# )
-# if (interactive()) app
-
 # actual function
-function (map, urlTemplate = "//{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", 
-          attribution = NULL, layerId = NULL, group = NULL, options = tileOptions()) 
-{
-  options$attribution = attribution
-  if (missing(urlTemplate) && is.null(options$attribution)) 
-    options$attribution = paste("&copy; <a href=\"http://openstreetmap.org\">OpenStreetMap</a>", 
-                                "contributors, <a href=\"http://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA</a>")
-  invokeMethod(map, getMapData(map), "addTiles", urlTemplate, 
-               layerId, group, options)
-}
+# function (map, urlTemplate = "//{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", 
+#           attribution = NULL, layerId = NULL, group = NULL, options = tileOptions()) 
+# {
+#   options$attribution = attribution
+#   if (missing(urlTemplate) && is.null(options$attribution)) 
+#     options$attribution = paste("&copy; <a href=\"http://openstreetmap.org\">OpenStreetMap</a>", 
+#                                 "contributors, <a href=\"http://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA</a>")
+#   invokeMethod(map, getMapData(map), "addTiles", urlTemplate, 
+#                layerId, group, options)
+# }
 
 
 
 # edited function
-addTiles = function (map, urlTemplate = "**http:**//{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                     attribution = NULL, layerId = NULL, group = NULL, options = tileOptions())
-{
-  options$attribution = attribution
-  if (missing(urlTemplate) && is.null(options$attribution))
-    options$attribution = paste("© <a href=\"http://openstreetmap.org\">OpenStreetMap",
-                                "contributors, <a href=\"http://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA")
-  invokeMethod(map, getMapData(map), "addTiles", urlTemplate,
-               layerId, group, options)
-}
+# addTiles = function (map, urlTemplate = "**http:**//{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+#                      attribution = NULL, layerId = NULL, group = NULL, options = tileOptions())
+# {
+#   options$attribution = attribution
+#   if (missing(urlTemplate) && is.null(options$attribution))
+#     options$attribution = paste("© <a href=\"http://openstreetmap.org\">OpenStreetMap",
+#                                 "contributors, <a href=\"http://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA")
+#   invokeMethod(map, getMapData(map), "addTiles", urlTemplate,
+#                layerId, group, options)
+# }
+
+
+
+
+
+
+
+
+
+
+
 

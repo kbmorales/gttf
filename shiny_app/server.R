@@ -9,7 +9,7 @@ output$bmore_map <- renderLeaflet({
   # examples say to put addLayersControl() at end of map making
   bmore_map = bmore_map %>%
     addTiles('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-             attribution = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>. *Displayed cases are 80% of total data set aggregated. Cases are over a period of ~10yrs.') %>%
+             attribution = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>. *Displayed cases are 80% of total data set aggregated. Cases are over a period of ~10yrs.' ) %>%
     fitBounds(-76.89493, 39.19533, -76.32139, 39.72115) %>%
     # addProviderTiles(providers$Stamen.TonerLines,
     #                  options = providerTileOptions(opacity = 0.35)) %>%
@@ -81,7 +81,7 @@ output$bmore_map <- renderLeaflet({
                color = ~sex_icons(sex_id),
                label = ~as.character(bmoredemo_markers1$sex_id),
                options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)) %>%
-    addLegend("bottomright",
+    addLegend("bottomleft",
               colors = c( "#53a097", "#0d2666", "#682140"),
               labels = c("Male", "Female", "Other/Unknown"),
               title = "Cases by Sex",
@@ -98,7 +98,7 @@ output$bmore_map <- renderLeaflet({
                color = ~pal(age_yrs),
                label = ~as.character(bmoredemo_markers1$age_yrs),
                options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)) %>%
-    addLegend("bottomright",
+    addLegend("bottomleft",
               pal = pal,
               values = bmoredemo_markers1$age_yrs,
               title = "Age",

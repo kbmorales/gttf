@@ -5,8 +5,8 @@ account: problemforward
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 774141
-bundleId: 1926027
+bundleId: 1926419
 url: https://problemforward.shinyapps.io/baltimore_gttf_map/
-when: 1552074492.58793
+when: 1552082826.94397
 asMultiple: FALSE
 asStatic: FALSE
