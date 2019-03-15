@@ -211,3 +211,54 @@ mdcs_charges_df %>%
         axis.text.x = element_text(face = "bold", angle = 45, hjust = 1, vjust = 1)) + 
   labs(x = "Charge Type", y = "Count", fill = "Defendant Race") 
   
+
+# Fill
+mdcs_charges_df %>% 
+  left_join(mdcs_df) %>% 
+  ggplot(aes(x = charge_desc_2, fill = race_black)) + 
+  geom_bar(position = "fill") + 
+  coord_flip() + 
+  theme_minimal() + 
+  scale_fill_viridis(discrete = T) + 
+  theme(legend.position = "bottom",
+        axis.text.x = element_text(face = "bold", angle = 45, hjust = 1, vjust = 1)) + 
+  labs(x = "Charge Type", y = "Proportion", fill = "Defendant Race",
+       caption = "Dashed black line indicates overall proportion of nonblack race among charges\nDashed red line indicates nonblack proportion of Baltimore city residents") +
+  geom_hline(yintercept = 0.14,
+             linetype = 2,
+             size = 1) +
+  geom_hline(yintercept = 1 - 0.6374,
+             linetype = 2,
+             size = 1,
+             color = "red") 
+
+
+# Charges with sentences --------------------------------------------------
+
+
+# Histogram of jailtime by race
+mdcs_charges_df %>%
+  filter(charge_jailtime > 0) %>%
+  left_join(mdcs_df) %>%
+  ggplot(aes(x = charge_jailtime, fill = race_black)) +
+  geom_histogram(binwidth = 1) +
+  theme_minimal() +
+  scale_fill_viridis(discrete = T)
+
+# 
+mdcs_charges_df %>%
+  filter(charge_jailtime > 0) %>%
+  left_join(mdcs_df) %>%
+  group_by(race_black, charge_desc_2) %>%
+  summarise(jailtime = sum(charge_jailtime)) %>%
+  ggplot(aes(x = reorder(charge_desc_2, jailtime), y = jailtime, fill = race_black)) +
+  geom_col(position = "dodge") +
+  theme_minimal() +
+  scale_fill_viridis(discrete = T) +
+  coord_flip() +
+  theme(legend.position = "bottom") +
+  labs(x = "Charge", y = "Total Jail Time", fill = "Race")
+
+
+
+

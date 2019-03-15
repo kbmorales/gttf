@@ -373,6 +373,8 @@ save(mdcs_circ_cops_df,
 mdcs_df %>%
   count(defendant_sex)
 
+mdcs_df <- mdcs_df %>% ungroup()
+
 # creating new column
 mdcs_df = mdcs_df %>%
   mutate(sex_id = case_when(
@@ -391,11 +393,20 @@ mdcs_df = mdcs_df %>%
     TRUE ~ defendant_race
   ))
 
-# filtering for age
-bmore_demo %>%
-  count(is.na(defendant_dob))
+
+# Create black vs. non-black
+mdcs_df = mdcs_df %>%
+  mutate(race_black = case_when(
+    defendant_race == "BLACK, AFRICAN AMERICAN" ~ "BLACK",
+    defendant_race == "BLACK" ~ "BLACK",
+    TRUE ~ "NONBLACK"
+  ))
 
 # age at time of court case
 mdcs_df = mdcs_df %>%
-  mutate(age_yrs = as.numeric(round(difftime(mdcs_df$date, mdcs_df$defendant_dob, units = "days") / 365)))
+  mutate(age_yrs = as.numeric(
+    round(
+      difftime(
+        mdcs_df$date, 
+        mdcs_df$defendant_dob, units = "days") / 365)))
 
