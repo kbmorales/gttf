@@ -283,6 +283,12 @@ bmoredemo_markers1 <- left_join(bmore_plot1,
 # bmoredemo_markers1 = bmoredemo_markers1 %>% select(-full_address.y)
 # colnames(bmoredemo_markers1)[colnames(bmoredemo_markers1) == "full_address.x"] <- "full_address"
 
+
+# this adds the charges data to the dataset
+bmoredemo_markers1 <- left_join(mdcs_charges_df,
+                                bmoredemo_markers1,
+                                by = "case_num")
+
 # filtering out what I need only for demographic data
 bmoredemo_markers1 = bmoredemo_markers1 %>% 
   dplyr::select(case_num,
@@ -294,7 +300,8 @@ bmoredemo_markers1 = bmoredemo_markers1 %>%
                 age_yrs,
                 sex_id,
                 case_type,
-                case_type_2) %>% 
+                case_type_2,
+                ) %>% 
   group_by(case_num) %>% 
   ungroup()
 
@@ -327,14 +334,19 @@ pal <- colorNumeric(palette = diverge_hcl(5, "Berlin"),
 # REMINDER: every time new variations are made must run empty leaflet line
 # or the map will just be written over and not rerun
 
+#          attribution = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>. *Displayed cases are 80% of total data set aggregated. Cases are over a period of ~10yrs.
+
+
+
 # creates map object
 bmore_map = leaflet()
 
 # adding data
 # examples say to put addLayersControl() at end of map making
 bmore_map = bmore_map %>%
-    addTiles('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-             attribution='Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>') %>%
+  addTiles('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+  attribution = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>. *Displayed cases are 80% of total data set aggregated. Cases are over a period of ~10yrs.' ) %>%
+  fitBounds(-76.89493, 39.19533, -76.32139, 39.72115) %>%
   # addProviderTiles(providers$Stamen.TonerLines,
   #                  options = providerTileOptions(opacity = 0.35)) %>%
   # addProviderTiles(providers$Stamen.TonerLabels) %>%
@@ -346,10 +358,19 @@ bmore_map = bmore_map %>%
               group = "City",
               color = "#c0a5ff",
               fill = FALSE) %>%
-  addPolygons(data = city_county,
-              group = "City and County",
-              color = "#b0aeb2",
-              fill = FALSE) %>%
+  addCircles(data = bmoredemo_markers1,
+             lng = ~lon,
+             lat = ~lat,
+             group = "Points",
+             popup = bmoredemo_markers1$case_num,
+             weight = 3,
+             radius = 40,
+             stroke = TRUE,
+             fillOpacity = 0.8,
+             color = "#ff0000",
+             label = ~ c(as.character(bmoredemo_markers1$case_num),
+                         as.character(bmoredemo_markers1$charge_desc)),
+             options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)) %>%
   addCircles(data = bmoredemo_markers1,
              lng = ~lon,
              lat = ~lat,
@@ -360,7 +381,8 @@ bmore_map = bmore_map %>%
              stroke = TRUE,
              fillOpacity = 0.8,
              color = ~raceblack_icons(race_black),
-             label = ~as.character(bmoredemo_markers1$race_black)) %>%
+             label = ~as.character(bmoredemo_markers1$race_black),
+             options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)) %>%
   addLegend("bottomright",
             colors = c("#ffa500", "#b7b2ac"),
             labels = c("Black", "Non-Black"),
@@ -376,12 +398,14 @@ bmore_map = bmore_map %>%
              stroke = TRUE,
              fillOpacity = 0.8,
              color = ~racecat_icons(race_cat),
-             label = ~as.character(bmoredemo_markers1$case_num)) %>%
+             label = ~as.character(bmoredemo_markers1$case_num),
+             options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)) %>%
   addLegend("bottomright",
             colors = c("#78840b", "#036852", "#a53208"),
             labels = c("Black", "Other/Unknown", "White"),
             title = "Cases by Race Mult",
-            group = "Black/White/Other") %>%
+            group = "Black/White/Other",
+            labFormat = labelFormat(group = "Black/White/Other")) %>%
   addCircles(data = bmoredemo_markers1,
              lng = ~lon,
              lat = ~lat,
@@ -392,12 +416,14 @@ bmore_map = bmore_map %>%
              stroke = TRUE,
              fillOpacity = 0.8,
              color = ~sex_icons(sex_id),
-             label = ~as.character(bmoredemo_markers1$sex_id)) %>%
-  addLegend("bottomright",
+             label = ~as.character(bmoredemo_markers1$sex_id),
+             options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)) %>%
+  addLegend("bottomleft",
             colors = c( "#53a097", "#0d2666", "#682140"),
             labels = c("Male", "Female", "Other/Unknown"),
             title = "Cases by Sex",
-            group = "Female/Male") %>%
+            group = "Female/Male",
+            labFormat = labelFormat()) %>%
   addCircles(data = bmoredemo_markers1,
              lng = ~lon,
              lat = ~lat,
@@ -407,35 +433,73 @@ bmore_map = bmore_map %>%
              stroke = TRUE,
              fillOpacity = 0.5,
              color = ~pal(age_yrs),
-             label = ~as.character(bmoredemo_markers1$age_yrs)) %>%
-  addLegend("bottomright",
+             label = ~as.character(bmoredemo_markers1$age_yrs),
+             options = markerClusterOptions(removeOutsideVisibleBounds = TRUE)) %>%
+  addLegend("bottomleft",
             pal = pal,
             values = bmoredemo_markers1$age_yrs,
             title = "Age",
-            group = "Age")
-  addLayersControl(baseGroups = c("County", 
-                                  "City",
-                                  "City and County"),
-                   overlayGroups = c("Black/Non-Black", 
-                                     "Black/White/Other",
-                                     "Female/Male",
-                                     "Age"),
-                   options = layersControlOptions(collapsed = FALSE))
+            group = "Age") %>%
+  addLayersControl(overlayGroups = c("City",
+                                     "County"),
+                   baseGroups = c("Points",
+                                  "Black/Non-Black", 
+                                  "Black/White/Other",
+                                  "Female/Male",
+                                  "Age"),
+                   options = layersControlOptions(collapsed = TRUE, autoZIndex = TRUE))
   
 
 # data added on the map
 
 # saves map
-saveWidget(bmore_map,
-           file = here::here("products/bmore_map.html"))
+htmlwidgets::saveWidget(bmore_map,
+           file = here::here("products/bmore_map.html"),
+           selfcontained = TRUE)
 
-# possible save output for the map
-# library(shiny)
-# app <- shinyApp(
-#   ui = fluidPage(leafletOutput('myMap')),
-#   server = function(input, output) {
-#     map = leaflet() %>% addTiles() %>% setView(-93.65, 42.0285, zoom = 17)
-#     output$myMap = renderLeaflet(map)
-#   }
-# )
-# if (interactive()) app
+webshot("products/bmore_map.html",
+        file = here::here("products/bmore_map.png",
+                          cliprect = "viewport"))
+
+
+
+mapshot(bmore_map, url = paste0(getwd(), "/bmore_map.html"))
+
+
+# actual function
+# function (map, urlTemplate = "//{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", 
+#           attribution = NULL, layerId = NULL, group = NULL, options = tileOptions()) 
+# {
+#   options$attribution = attribution
+#   if (missing(urlTemplate) && is.null(options$attribution)) 
+#     options$attribution = paste("&copy; <a href=\"http://openstreetmap.org\">OpenStreetMap</a>", 
+#                                 "contributors, <a href=\"http://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA</a>")
+#   invokeMethod(map, getMapData(map), "addTiles", urlTemplate, 
+#                layerId, group, options)
+# }
+
+
+
+# edited function
+# addTiles = function (map, urlTemplate = "**http:**//{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+#                      attribution = NULL, layerId = NULL, group = NULL, options = tileOptions())
+# {
+#   options$attribution = attribution
+#   if (missing(urlTemplate) && is.null(options$attribution))
+#     options$attribution = paste("© <a href=\"http://openstreetmap.org\">OpenStreetMap",
+#                                 "contributors, <a href=\"http://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA")
+#   invokeMethod(map, getMapData(map), "addTiles", urlTemplate,
+#                layerId, group, options)
+# }
+
+
+
+
+
+
+
+
+
+
+
+
