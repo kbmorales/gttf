@@ -33,7 +33,7 @@ Support files are as follows:
   - `code/final_code/network.R`
   - `code/final_code/scrape.R`
 
-Reports are as follows. 
+Reports are as follows: 
 
 ### pf_gttf_report_01
 
