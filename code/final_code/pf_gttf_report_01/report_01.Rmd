@@ -1,0 +1,51 @@
+---
+title: "Report 01"
+author: "Problem Forward"
+date: "03/01/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Current dataset is built on indicted GTTF cops:
+  - Allers, Thomas
+  - Gondo, Momodu
+  - Hendrix, Evodio
+  - Hersl, Daniel
+  - Jenkins, Wayne
+  - Rayam, Jemell
+  - Taylor, Marcus
+  - Ward, Maurice
+  
+Other cops of interest (according to Debbie Levi - Baltimore Public Defender’s Office; email from Mahrya 02.28.2019):
+
+  - Biggers, Sherrod
+  - Edwards, Tariq
+  - Giordano, Jason
+  - Gladstone, Keith -- INDICTED (from 2014?) (edit: KM 03.05.2019)
+  - Guinn, Ryan
+  - Hankard, Robert
+  - Ivery, Kenneth
+  - Palmere, Matthew
+  - Ryckman, Matthew
+  - Snell, Eric -- INDICTED (Philidelphia Officer)
+  - Storie, Adam
+  - Suiter, Sean
+  - Sylvester, Michael
+  - Vignola, Carmine
+  - Wilson III, Thomas
+  
+# Total Number of Cases, 2008 - 2018
+
+* Filtered to only District Court cases: 4,577
+  - Need individual timelines for the 8 indicted cops:
+    - Date they joined the BCPD
+    - Date they joined the GTTF
+    - Earliest known date of participation in illegal activity
+      - Public defenders office (via Debbie Levi):
+        "**examining all cases involving these cops from the earliest dates they were known to have conducted criminal activity on duty **"
+  - Gabe Dinsmoor is working on these timelines, per email from Mahrya 02.28.2019
+  
+## Histogram of casses by GTTF indicted cop involvement
