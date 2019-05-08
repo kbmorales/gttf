@@ -2,10 +2,11 @@
 .Rhistory
 .RData
 .Ruserdata
-./data
-*.httr-oauth
+/data
+.httr-oauth
 googlesheets_token.rds
 project.Rproj
 /themes
 .Renviron
 *raster_objects.R
+
