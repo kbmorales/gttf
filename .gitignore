@@ -8,3 +8,5 @@ googlesheets_token.rds
 project.Rproj
 /themes
 .Renviron
+*raster_objects.R
+
