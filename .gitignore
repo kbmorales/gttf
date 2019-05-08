@@ -2,10 +2,9 @@
 .Rhistory
 .RData
 .Ruserdata
-./data
+/data
 .httr-oauth
 googlesheets_token.rds
 project.Rproj
 /themes
 .Renviron
-learning_about_bitch_ass_raster_objects.R
