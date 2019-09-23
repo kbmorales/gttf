@@ -5,8 +5,8 @@ library(ggplot2)
 library(scales)
 library(viridis)
 
-load(file = here("data/tidy_data",
-                 "mdcs_cops_df.rda"))
+load(file = here::here("data/tidy_data",
+                       "mdcs_cops_clean_df.rda"))
 
 
 # MDCS counts: Histogram ---------------------------------------------------------------
@@ -15,10 +15,11 @@ load(file = here("data/tidy_data",
 test_pal <- viridis(8, option = "D")
 test_pal[9] <- "#000000"
 
-ggplot(mdcs_cops_df, aes(x = date, 
-                         fill = gttf_cop
-                         )
-       ) +
+mdcs_cops_df %>% 
+  ggplot(aes(x = date, 
+             fill = gttf_cop
+             )
+  ) +
   theme_minimal() +
   geom_histogram(binwidth = 30,
                  alpha = 0.8) +
@@ -32,7 +33,7 @@ ggplot(mdcs_cops_df, aes(x = date,
   scale_y_continuous(limits = c(0,NA),
                      breaks=c(50,100,150,200)) +
   labs(y = "Number of cases",
-       fill = "Cop",
+       fill = "Officer",
        caption = "Bins are 30 days wide",
        title = "Monthly District Court cases involving convicted GTTF police officers",
        subtitle = "2008 - 2018") +
@@ -58,6 +59,10 @@ ggplot(mdcs_cops_df, aes(x = date,
         panel.grid.minor.x = element_blank(),
         axis.ticks.x = element_line(color="black")) 
 
+ggsave(filename = here::here("products/figures",
+                             "gttf_cases_timeline.png"),
+       device = "png"
+       )
 
 # MDCS counts: Flipped histogram -------------------------------------------------------
 

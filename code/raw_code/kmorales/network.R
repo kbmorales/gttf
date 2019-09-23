@@ -7,10 +7,13 @@ library(tidyverse)
 library(tidygraph)
 library(ggraph)
 library(viridis)
+library(stringr)
 
 load(here::here("data/tidy_data",
                 "mdcs_network_data.rda"))
 
+load(here::here("data/tidy_data",
+                "cops_names.rda"))
 
 # Network filters ---------------------------------------------------------
 
@@ -120,17 +123,27 @@ ggraph(test) +
                   alpha = 0.8) + 
   theme_graph()
 
-ggraph(test, layout = "kk") + 
+test %>% 
+  ggraph(layout = "kk") + 
   geom_edge_fan(aes(color = gttf_cop),
                  alpha = 0.4) + 
   geom_node_point(aes(size = n),
                   alpha = 1) +
-  geom_node_text(aes(label = label),
-                 size = 2,
-                 repel = TRUE) +
+  # geom_node_text(aes(label = label),
+  #                size = 2,
+  #                repel = TRUE) +
   # scale_edge_color_viridis(discrete = TRUE) +
   theme_graph() +
-  theme(legend.position = "none")
+  labs(title = "GTTF Officers Network Map",
+       subtitle = "Cases tried after the death of Freddie Gray",
+       edge_colour = "GTTF Officer",
+       size = "Connections") +
+  theme(legend.position = "bottom")
+  
+ggsave(filename = here::here("products/figures",
+                             "gttf_network.png"),
+       device = "png"
+)
 
 ggraph(test, layout = "linear") + 
   geom_edge_arc(aes(width = weight), alpha = 0.8) + 
@@ -139,7 +152,7 @@ ggraph(test, layout = "linear") +
   labs(edge_width = "Cases") +
   theme_graph()
 
-ggraph(test, layout = 'dendrogram', circular = TRUE) + 
-  geom_edge_diagonal(color = gttf_cop) + 
-  geom_node_point() + 
-  coord_fixed()
+# ggraph(test, layout = 'dendrogram', circular = TRUE) + 
+#   geom_edge_diagonal(color = gttf_cop) + 
+#   geom_node_point() + 
+#   coord_fixed()
