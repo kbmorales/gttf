@@ -151,4 +151,4 @@ save(bmoredemo_markers1,
                        "bmore_markers.rda"))
 
 # after this script has run,
-# please go to "code/raw_code/census_demographic_maps.R" 
+# please go to "code/final_code/censusData_maps.R" 

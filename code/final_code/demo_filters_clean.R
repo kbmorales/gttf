@@ -22,10 +22,10 @@ mdcs_df = mdcs_df %>%
 
 i <- 1
 # this is the correct format, below code worked too. 
-# for(i in 1:dim(bmore_demo)[i, ]) {
-for(i in 1:dim(bmore_demo)) {
+for(i in 1:dim(bmore_demo)[i, ]) {
+# for(i in 1:dim(bmore_demo)) {
 bmore_demo$defendant_race = str_trim(bmore_demo$defendant_race,
-side = "both")
+                                     side = "both")
 bmore_demo$defendant_race = str_squish(bmore_demo$defendant_race)
 
   bmore_demo = bmore_demo %>%

@@ -15,6 +15,7 @@ library(mapview)
 # in the file "code/final_code/censusData_map.R
 
 # creating map --------------------------------------------
+# get mdcs_charges_df from "data/raw_data/mdcs_charges_data.rda"
 demo_markers = left_join(mdcs_charges_df, bmoredemo_markers1)
 
 demo_markers = demo_markers %>%

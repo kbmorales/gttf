@@ -176,3 +176,7 @@ occhouse_plot <- ggplot() +
 
 # interactive plot
 vachouse_plot <- ggplotly(vachouse_plot)
+
+
+# after this script has run,
+# please go to "code/final_code/chargesData_map.R" 
