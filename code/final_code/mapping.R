@@ -13,6 +13,7 @@ library(maps)
 library(tmap)
 library(tmaptools)
 library(htmlwidgets)
+library(colorspace)
 
 # setting up data ---------------------------------------------------------
 
@@ -344,20 +345,20 @@ bmore_map = leaflet()
 # adding data
 # examples say to put addLayersControl() at end of map making
 bmore_map = bmore_map %>%
-  addTiles('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-  attribution = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>. *Displayed cases are 80% of total data set aggregated. Cases are over a period of ~10yrs.' ) %>%
+  addTiles('https://{s}.tile.thunderforest.com/cycle/{z}/{x}/{y}.png',
+  attribution = 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>.\n *Displayed cases are 80% of total data set aggregated. Cases are over a period of ~10yrs.' ) %>%
   fitBounds(-76.89493, 39.19533, -76.32139, 39.72115) %>%
   # addProviderTiles(providers$Stamen.TonerLines,
   #                  options = providerTileOptions(opacity = 0.35)) %>%
   # addProviderTiles(providers$Stamen.TonerLabels) %>%
-  addPolygons(data = baltimore_county,
-              group = "County",
-              color = "#b799ff",
-              fill = FALSE) %>%
-  addPolygons(data = baltimore_city,
-              group = "City",
-              color = "#c0a5ff",
-              fill = FALSE) %>%
+  # addPolygons(data = baltimore_county,
+  #             group = "County",
+  #             color = "#b799ff",
+  #             fill = FALSE) %>%
+  # addPolygons(data = baltimore_city,
+  #             group = "City",
+  #             color = "#c0a5ff",
+              # fill = FALSE) %>%
   addCircles(data = bmoredemo_markers1,
              lng = ~lon,
              lat = ~lat,
@@ -440,8 +441,7 @@ bmore_map = bmore_map %>%
             values = bmoredemo_markers1$age_yrs,
             title = "Age",
             group = "Age") %>%
-  addLayersControl(overlayGroups = c("City",
-                                     "County"),
+  addLayersControl(overlayGroups = "Redline Map",
                    baseGroups = c("Points",
                                   "Black/Non-Black", 
                                   "Black/White/Other",

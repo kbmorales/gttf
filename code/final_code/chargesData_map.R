@@ -1,3 +1,4 @@
+library(dplyr)
 library(ggplot2)
 library(RStoolbox)
 library(plotly)
@@ -33,7 +34,7 @@ demo_markers = demo_markers %>%
                 race_cat)
 
 # MAPPING ---------------------------------------------
-rdl_square3 <- brick("products/figures/redline_square2.tif")
+redlining_map <- brick("products/figures/redline_square2.tif")
 
 
 p <- ggplot(demo_markers, aes(x = lon, y = lat))
@@ -73,21 +74,25 @@ export(redline_plot,
        selenium = TRUE)
 
 # mapview -------------------------------------------
-test = demo_markers
+test = demo_markers %>% 
+  mutate("Race Category" = case_when(
+    race_cat == "BLACK" ~ "Black",
+    race_cat == "WHITE" ~ "White",
+    TRUE ~ "Unknown"
+  ))
 
 xy <- test[,c(1,2)]
 
-spdf <- SpatialPointsDataFrame(coords = xy, data = test,
+charges <- SpatialPointsDataFrame(coords = xy, data = test,
                                proj4string = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
 
-
-rdl_square3 <- brick("products/figures/redline_square2.tif")
-map <- viewRGB(rdl_square3,
+redlining_map <- brick("products/figures/redline_square2.tif")
+map <- viewRGB(redlining_map,
         maxpixels = 5e+05,
         r = 1,
         g = 2,
         b = 3) +
-  mapview(spdf, zcol = c("race_cat"), legend = TRUE,
+  mapview(charges, zcol = c("Race Category"), legend = TRUE,
           alpha = 0.5,
           lwd = 1)
 
@@ -104,3 +109,4 @@ mapshot(map@map,
 htmlwidgets::saveWidget(map@map, 
                         file = paste0(getwd(), "/map.html"), 
                         selfcontained = FALSE)
+
