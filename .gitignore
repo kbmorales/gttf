@@ -5,6 +5,5 @@
 .httr-oauth
 project.Rproj
 .Renviron
-data/ojb_data.pdf
 data/analysis_1/
 auths/
